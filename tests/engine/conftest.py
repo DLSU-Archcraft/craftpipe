@@ -103,10 +103,21 @@ class Engine:
                 for step, reads in zip(steps, result["steps"])]
 
 
-@pytest.fixture
-def engine(tmp_path):
+def _require_engine():
     if LUANTI is None:
         pytest.skip("engine tests need the `luanti` binary on PATH")
     if not any(d.is_dir() for d in GAME_DIRS):
         pytest.skip("engine tests need the Mineclonia game installed (e.g. ~/.minetest/games/mineclonia)")
+
+
+@pytest.fixture
+def engine(tmp_path):
+    _require_engine()
     return Engine(tmp_path)
+
+
+@pytest.fixture(scope="module")
+def module_engine(tmp_path_factory):
+    """One Engine per test module, for tests that share a single server run."""
+    _require_engine()
+    return Engine(tmp_path_factory.mktemp("engine"))

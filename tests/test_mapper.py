@@ -170,3 +170,90 @@ def test_lamp_rule():
     conv = mapper.map_grid(grid_of("redstone_lamp[lit=false]", "redstone_lamp[lit=true]", "redstone_lamp"))
     assert [node_at(conv, (i, 0, 0))[0] for i in range(3)] == [
         "mcl_redstone_lamp:lamp_off", "mcl_redstone_lamp:lamp_on", "mcl_redstone_lamp:lamp_off"]
+
+
+FACINGS = ("north", "south", "east", "west")
+
+
+def one(state):
+    conv = mapper.map_grid(grid_of(state))
+    return node_at(conv, (0, 0, 0))
+
+
+@pytest.mark.parametrize("delay", [1, 2, 3, 4])
+@pytest.mark.parametrize("powered", ["true", "false"])
+def test_repeater_names(delay, powered):
+    name, _ = one(f"repeater[delay={delay},facing=north,locked=false,powered={powered}]")
+    assert name == f"mcl_repeaters:repeater_{'on' if powered == 'true' else 'off'}_{delay}"
+    assert name in NODES
+
+
+def test_repeater_param2_is_output_direction():
+    # MC `facing` names the input side; output is opposite. After the Z
+    # mirror MC north (-Z) becomes Luanti +Z. 4dir: 0=+Z 1=+X 2=-Z 3=-X.
+    got = {f: one(f"repeater[delay=1,facing={f}]")[1] for f in FACINGS}
+    assert got == {"north": 2, "south": 0, "east": 3, "west": 1}
+
+
+def test_locked_repeater_keeps_delay_in_param2():
+    assert one("repeater[delay=3,facing=south,locked=true,powered=true]") == \
+        ("mcl_repeaters:repeater_on_locked", 3 * 4 + 0)
+    assert one("repeater[delay=2,facing=east,locked=true,powered=false]") == \
+        ("mcl_repeaters:repeater_off_locked", 2 * 4 + 3)
+
+
+@pytest.mark.parametrize("mode,suffix", [("compare", "comp"), ("subtract", "sub")])
+@pytest.mark.parametrize("powered", ["true", "false"])
+def test_comparator_names(mode, suffix, powered):
+    name, _ = one(f"comparator[facing=north,mode={mode},powered={powered}]")
+    assert name == f"mcl_comparators:comparator_{'on' if powered == 'true' else 'off'}_{suffix}"
+    assert name in NODES
+
+
+def test_comparator_param2():
+    got = {f: one(f"comparator[facing={f},mode=compare,powered=false]")[1] for f in FACINGS}
+    assert got == {"north": 2, "south": 0, "east": 3, "west": 1}
+
+
+def test_comparator_output_signal_from_block_entity():
+    g = grid_of("comparator[facing=south,mode=compare,powered=true]")
+    g.block_entities[(0, 0, 0)] = {"id": "minecraft:comparator", "OutputSignal": 9}
+    conv = mapper.map_grid(g)
+    assert node_at(conv, (0, 0, 0)) == ("mcl_comparators:comparator_on_comp", 9 * 4 + 0)
+
+
+def test_torch_rules():
+    assert one("redstone_torch[lit=true]") == ("mcl_redstone_torch:redstone_torch_on", 1)
+    assert one("redstone_torch[lit=false]") == ("mcl_redstone_torch:redstone_torch_off", 1)
+    # wallmounted: 2=+X 3=-X 4=+Z 5=-Z names the direction of the support block.
+    got = {f: one(f"redstone_wall_torch[facing={f},lit=true]") for f in FACINGS}
+    assert {f: n for f, (n, _) in got.items()} == dict.fromkeys(
+        FACINGS, "mcl_redstone_torch:redstone_torch_on_wall")
+    assert {f: p for f, (_, p) in got.items()} == {"north": 5, "south": 4, "east": 3, "west": 2}
+    assert one("redstone_wall_torch[facing=east,lit=false]")[0] == \
+        "mcl_redstone_torch:redstone_torch_off_wall"
+
+
+def test_button_rules():
+    assert one("stone_button[face=floor,facing=north,powered=false]") == \
+        ("mcl_buttons:button_stone_off", 1)
+    assert one("stone_button[face=ceiling,facing=north,powered=true]") == \
+        ("mcl_buttons:button_stone_on", 0)
+    got = {f: one(f"oak_button[face=wall,facing={f},powered=false]") for f in FACINGS}
+    assert {f: p for f, (_, p) in got.items()} == {"north": 5, "south": 4, "east": 3, "west": 2}
+    assert got["north"][0] == "mcl_buttons:button_oak_off"
+
+
+def test_every_button_material_resolves():
+    table = mapper.load_table()
+    buttons = [mc for mc, row in table["blocks"].items()
+               if isinstance(row, dict) and row["rule"] == "button"]
+    assert len(buttons) >= 13
+    for mc in buttons:
+        for powered in ("true", "false"):
+            assert one(f"{mc}[face=wall,facing=east,powered={powered}]")[0] in NODES, mc
+
+
+def test_simple_redstone_rows():
+    assert one("redstone_block")[0] == "mcl_redstone_torch:redstoneblock"
+    assert one("target")[0] == "mcl_target:target_off"

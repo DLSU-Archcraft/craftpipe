@@ -74,7 +74,17 @@ RULE_ROWS = {
     "minecraft:redstone_wire": {"rule": "dust"},
     "minecraft:redstone_lamp": {"rule": "lamp"},
     "minecraft:lever": {"rule": "lever"},
+    "minecraft:repeater": {"rule": "repeater"},
+    "minecraft:comparator": {"rule": "comparator"},
+    "minecraft:redstone_torch": {"rule": "torch"},
+    "minecraft:redstone_wall_torch": {"rule": "wall_torch"},
+    "minecraft:redstone_block": "mcl_redstone_torch:redstoneblock",
+    "minecraft:target": "mcl_target:target_off",
+    "minecraft:stone_button": {"rule": "button", "material": "stone"},
+    "minecraft:polished_blackstone_button": {"rule": "button", "material": "polished_blackstone"},
 }
+for mc, mcl in WOODS.items():
+    RULE_ROWS[f"minecraft:{mc}_button"] = {"rule": "button", "material": mcl}
 blocks.update(RULE_ROWS)
 
 unsupported = {

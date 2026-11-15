@@ -125,6 +125,17 @@ def map_grid(grid: VoxelGrid, *, allow_unmapped: bool = False, source: str = "")
         param2[i] = node.param2 & 0xFF
         report.counts[node.name] = report.counts.get(node.name, 0) + 1
 
+    # Comparators keep their output strength in the block entity; Mineclonia
+    # keeps it in the upper bits of param2.
+    for (x, y, z), entity in mirrored.block_entities.items():
+        i = mts.index(size, x, y, z)
+        if names[node_ids[i]].startswith("mcl_comparators:comparator_"):
+            try:
+                signal = max(0, min(15, int(entity.get("OutputSignal", 0))))
+            except (TypeError, ValueError):
+                signal = 0
+            param2[i] = signal * 4 + param2[i] % 4
+
     for entry in report.unmapped.values():
         entry.positions.sort()
     if report.unmapped and not allow_unmapped:

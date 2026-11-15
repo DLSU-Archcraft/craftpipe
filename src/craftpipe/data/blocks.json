@@ -1,5 +1,9 @@
 {
  "blocks": {
+  "minecraft:acacia_button": {
+   "rule": "button",
+   "material": "acacia"
+  },
   "minecraft:acacia_planks": "mcl_trees:wood_acacia",
   "minecraft:acacia_slab": {
    "rule": "slab",
@@ -11,6 +15,10 @@
    "rule": "slab",
    "base": "mcl_stairs:slab_andesite"
   },
+  "minecraft:bamboo_button": {
+   "rule": "button",
+   "material": "bamboo"
+  },
   "minecraft:bamboo_planks": "mcl_trees:wood_bamboo",
   "minecraft:bamboo_slab": {
    "rule": "slab",
@@ -18,6 +26,10 @@
   },
   "minecraft:barrier": "mcl_core:barrier",
   "minecraft:bedrock": "mcl_core:bedrock",
+  "minecraft:birch_button": {
+   "rule": "button",
+   "material": "birch"
+  },
   "minecraft:birch_planks": "mcl_trees:wood_birch",
   "minecraft:birch_slab": {
    "rule": "slab",
@@ -41,6 +53,10 @@
   "minecraft:brown_terracotta": "mcl_colorblocks:hardened_clay_brown",
   "minecraft:brown_wool": "mcl_wool:brown",
   "minecraft:cave_air": "air",
+  "minecraft:cherry_button": {
+   "rule": "button",
+   "material": "cherry_blossom"
+  },
   "minecraft:cherry_planks": "mcl_trees:wood_cherry_blossom",
   "minecraft:cherry_slab": {
    "rule": "slab",
@@ -53,7 +69,14 @@
    "rule": "slab",
    "base": "mcl_stairs:slab_cobble"
   },
+  "minecraft:comparator": {
+   "rule": "comparator"
+  },
   "minecraft:cracked_stone_bricks": "mcl_core:stonebrickcracked",
+  "minecraft:crimson_button": {
+   "rule": "button",
+   "material": "crimson"
+  },
   "minecraft:crimson_planks": "mcl_trees:wood_crimson",
   "minecraft:crimson_slab": {
    "rule": "slab",
@@ -64,6 +87,10 @@
   "minecraft:cyan_stained_glass": "mcl_core:glass_cyan",
   "minecraft:cyan_terracotta": "mcl_colorblocks:hardened_clay_cyan",
   "minecraft:cyan_wool": "mcl_wool:cyan",
+  "minecraft:dark_oak_button": {
+   "rule": "button",
+   "material": "dark_oak"
+  },
   "minecraft:dark_oak_planks": "mcl_trees:wood_dark_oak",
   "minecraft:dark_oak_slab": {
    "rule": "slab",
@@ -106,6 +133,10 @@
   "minecraft:green_terracotta": "mcl_colorblocks:hardened_clay_green",
   "minecraft:green_wool": "mcl_wool:green",
   "minecraft:iron_block": "mcl_core:ironblock",
+  "minecraft:jungle_button": {
+   "rule": "button",
+   "material": "jungle"
+  },
   "minecraft:jungle_planks": "mcl_trees:wood_jungle",
   "minecraft:jungle_slab": {
    "rule": "slab",
@@ -131,12 +162,20 @@
   "minecraft:magenta_stained_glass": "mcl_core:glass_magenta",
   "minecraft:magenta_terracotta": "mcl_colorblocks:hardened_clay_magenta",
   "minecraft:magenta_wool": "mcl_wool:magenta",
+  "minecraft:mangrove_button": {
+   "rule": "button",
+   "material": "mangrove"
+  },
   "minecraft:mangrove_planks": "mcl_trees:wood_mangrove",
   "minecraft:mangrove_slab": {
    "rule": "slab",
    "base": "mcl_stairs:slab_mangrove"
   },
   "minecraft:mossy_stone_bricks": "mcl_core:stonebrickmossy",
+  "minecraft:oak_button": {
+   "rule": "button",
+   "material": "oak"
+  },
   "minecraft:oak_planks": "mcl_trees:wood_oak",
   "minecraft:oak_slab": {
    "rule": "slab",
@@ -147,6 +186,10 @@
   "minecraft:orange_stained_glass": "mcl_core:glass_orange",
   "minecraft:orange_terracotta": "mcl_colorblocks:hardened_clay_orange",
   "minecraft:orange_wool": "mcl_wool:orange",
+  "minecraft:pale_oak_button": {
+   "rule": "button",
+   "material": "pale_oak"
+  },
   "minecraft:pale_oak_planks": "mcl_trees:wood_pale_oak",
   "minecraft:pale_oak_slab": {
    "rule": "slab",
@@ -160,6 +203,10 @@
   "minecraft:polished_andesite_slab": {
    "rule": "slab",
    "base": "mcl_stairs:slab_andesite_smooth"
+  },
+  "minecraft:polished_blackstone_button": {
+   "rule": "button",
+   "material": "polished_blackstone"
   },
   "minecraft:polished_deepslate": "mcl_deepslate:deepslate_polished",
   "minecraft:polished_deepslate_slab": {
@@ -189,11 +236,21 @@
   "minecraft:red_stained_glass": "mcl_core:glass_red",
   "minecraft:red_terracotta": "mcl_colorblocks:hardened_clay_red",
   "minecraft:red_wool": "mcl_wool:red",
+  "minecraft:redstone_block": "mcl_redstone_torch:redstoneblock",
   "minecraft:redstone_lamp": {
    "rule": "lamp"
   },
+  "minecraft:redstone_torch": {
+   "rule": "torch"
+  },
+  "minecraft:redstone_wall_torch": {
+   "rule": "wall_torch"
+  },
   "minecraft:redstone_wire": {
    "rule": "dust"
+  },
+  "minecraft:repeater": {
+   "rule": "repeater"
   },
   "minecraft:sandstone": "mcl_core:sandstone",
   "minecraft:sandstone_slab": {
@@ -212,6 +269,10 @@
    "rule": "slab",
    "base": "mcl_stairs:slab_stone"
   },
+  "minecraft:spruce_button": {
+   "rule": "button",
+   "material": "spruce"
+  },
   "minecraft:spruce_planks": "mcl_trees:wood_spruce",
   "minecraft:spruce_slab": {
    "rule": "slab",
@@ -223,13 +284,22 @@
    "base": "mcl_stairs:slab_stonebrick"
   },
   "minecraft:stone_bricks": "mcl_core:stonebrick",
+  "minecraft:stone_button": {
+   "rule": "button",
+   "material": "stone"
+  },
   "minecraft:stone_slab": {
    "rule": "slab",
    "base": "mcl_stairs:slab_stone_rough"
   },
+  "minecraft:target": "mcl_target:target_off",
   "minecraft:terracotta": "mcl_colorblocks:hardened_clay",
   "minecraft:tinted_glass": "mcl_amethyst:tinted_glass",
   "minecraft:void_air": "air",
+  "minecraft:warped_button": {
+   "rule": "button",
+   "material": "warped"
+  },
   "minecraft:warped_planks": "mcl_trees:wood_warped",
   "minecraft:warped_slab": {
    "rule": "slab",
