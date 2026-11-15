@@ -104,3 +104,32 @@ def test_period_summary_ignores_phase():
 def test_count_summary():
     a = [(1, R(False, None)), (2, R(True, None)), (3, R(False, None))]
     assert summarise("count", a, None) == {"changes": 3, "final_on": False}
+
+
+# ---- README section ----------------------------------------------------------
+
+import importlib.util   # noqa: E402
+import pathlib          # noqa: E402
+
+REPO = pathlib.Path(__file__).resolve().parents[1]
+_spec = importlib.util.spec_from_file_location("render_differences", REPO / "tools/render_differences.py")
+render_differences = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(render_differences)
+
+
+def test_render_marks_documented_entries():
+    text = render_differences.render([
+        entry(id="a", title="First", explanation="Why one."),
+        entry(id="b", title="Second", explanation="Why two.", established="documented"),
+    ])
+    assert "- **First.** Why one." in text
+    assert "- **Second.** Why two. *(Minecraft's side is taken from documentation, not measured.)*" in text
+
+
+def test_readme_differences_section_is_in_sync():
+    readme = (REPO / "README.md").read_text()
+    start, end = render_differences.START, render_differences.END
+    assert start in readme and end in readme
+    section = readme.split(start, 1)[1].split(end, 1)[0].strip()
+    assert section == render_differences.render(differences.load()).strip(), \
+        "run `python tools/render_differences.py`"
