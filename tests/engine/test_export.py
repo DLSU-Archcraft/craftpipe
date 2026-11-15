@@ -53,3 +53,26 @@ def test_an_export_can_be_placed_again(engine):
     assert result["exports"][0]["ok"]
     again = engine.run_raw(world, "copy", conv.size, [])
     assert again["place_ok"], again["place_message"]
+
+
+def test_export_does_not_overwrite_without_being_asked(engine):
+    """<world>/schems is shared with /craftpipe_place; a reused name must
+    not silently replace an earlier export or a staged build."""
+    world, conv, result = export(engine, [
+        {"export": {"name": "circuit"}},                         # the staged build's own name
+        {"export": {"name": "fresh"}},
+        {"export": {"name": "fresh"}},
+        {"export": {"name": "fresh", "overwrite": True}},
+    ])
+    first, second, third, fourth = result["exports"]
+    assert first["ok"] is False and "already exists" in first["message"]
+    assert second["ok"] is True
+    assert third["ok"] is False and "overwrite" in third["message"]
+    assert fourth["ok"] is True
+
+
+def test_export_refuses_a_region_that_is_not_generated(engine):
+    _, _, result = export(engine, [
+        {"export": {"name": "far", "region": [[3000, 10, 3000], [3003, 11, 3003]]}}])
+    (entry,) = result["exports"]
+    assert entry["ok"] is False and "not been generated" in entry["message"]

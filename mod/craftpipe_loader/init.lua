@@ -405,19 +405,24 @@ end
 local EXPORT_MAX_VOLUME = 4000000
 local EXPORT_LISTS = {"main", "src", "fuel", "dst"}
 
--- Container contents and lectern pages inside a region, as manifest entries.
+-- Container contents and lectern pages inside a region, as manifest
+-- entries. Returns nil if part of the region does not exist yet.
 local function collect_contents(p1, p2)
 	local containers, meta_entries = {}, {}
 	local vm = core.get_voxel_manip(p1, p2)
 	local emin, emax = vm:get_emerged_area()
 	local area = VoxelArea(emin, emax)
 	local data = vm:get_data()
+	local ignore = core.get_content_id("ignore")
 	local kind = {}     -- content id -> "container" / "lectern" / false
 	for z = p1.z, p2.z do
 		for y = p1.y, p2.y do
 			local i = area:index(p1.x, y, z)
 			for x = p1.x, p2.x do
 				local id = data[i]
+				if id == ignore then
+					return nil
+				end
 				local k = kind[id]
 				if k == nil then
 					local name = core.get_name_from_content_id(id)
@@ -466,8 +471,9 @@ end
 
 --- Save the region between two positions as <world>/schems/<name>.mts
 -- plus <name>.craftpipe.json (container contents, lectern pages).
+-- Existing files of that name are only replaced when `overwrite` is true.
 -- Returns true and {size, containers, message}, or false and a message.
-function craftpipe.export(pos1, pos2, name)
+function craftpipe.export(pos1, pos2, name, overwrite)
 	if not valid_name(name) then
 		return false, "invalid schematic name (use letters, digits, _ and - only)"
 	end
@@ -477,9 +483,19 @@ function craftpipe.export(pos1, pos2, name)
 		return false, string.format("region is too large to export (%dx%dx%d; the limit is %d blocks)",
 			size.x, size.y, size.z, EXPORT_MAX_VOLUME)
 	end
-	core.load_area(p1, p2)
 	core.mkdir(schems_dir())
 	local path = schems_dir() .. name .. ".mts"
+	local manifest_path = schems_dir() .. name .. ".craftpipe.json"
+	if not overwrite and (read_file(path) or read_file(manifest_path)) then
+		return false, "a schematic called " .. name .. " already exists in the world's schems "
+			.. "folder; choose another name, or add the word overwrite to replace it"
+	end
+	core.load_area(p1, p2)
+	local containers, meta_entries = collect_contents(p1, p2)
+	if not containers then
+		return false, "part of the region has not been generated yet; nothing was exported. "
+			.. "Visit the whole build first, then export again"
+	end
 	if not core.create_schematic(p1, p2, nil, path) then
 		return false, "the engine could not save the region"
 	end
@@ -487,19 +503,19 @@ function craftpipe.export(pos1, pos2, name)
 	if not data then
 		return false, "the saved schematic could not be read back"
 	end
-	local containers, meta_entries = collect_contents(p1, p2)
 	local manifest = {
 		format = MANIFEST_FORMAT, kind = "export", source = "Mineclonia world",
 		size = {size.x, size.y, size.z}, mts_sha1 = core.sha1(data),
 		complete = true, containers = containers, meta = meta_entries,
 	}
-	if not core.safe_file_write(schems_dir() .. name .. ".craftpipe.json", core.write_json(manifest)) then
+	if not core.safe_file_write(manifest_path, core.write_json(manifest)) then
 		return false, "the manifest could not be written"
 	end
 	return true, {size = size, containers = #containers,
-		message = string.format("exported %s: %dx%dx%d, %d container(s). Files are in the world's "
-			.. "schems folder; convert with `craftpipe to-minecraft %s.mts`.",
-			name, size.x, size.y, size.z, #containers, name)}
+		message = string.format("exported %s: %dx%dx%d from %s to %s, %d container(s). Files are "
+			.. "in the world's schems folder; convert with `craftpipe to-minecraft %s.mts`.",
+			name, size.x, size.y, size.z, core.pos_to_string(p1), core.pos_to_string(p2),
+			#containers, name)}
 end
 
 local export_corners = {}       -- player name -> {pos1, pos2}
@@ -532,7 +548,7 @@ core.register_chatcommand("craftpipe_pos2", {
 })
 
 core.register_chatcommand("craftpipe_export", {
-	params = "<name>",
+	params = "<name> [overwrite]",
 	description = "Save the region between /craftpipe_pos1 and /craftpipe_pos2 (or the WorldEdit "
 		.. "selection) for conversion to Minecraft",
 	privs = {server = true},
@@ -545,7 +561,16 @@ core.register_chatcommand("craftpipe_export", {
 		if not (pos1 and pos2) then
 			return false, "craftpipe: set both corners first with /craftpipe_pos1 and /craftpipe_pos2"
 		end
-		local ok, result = craftpipe.export(pos1, pos2, param:match("^%s*(.-)%s*$"))
+		local name, flag = param:match("^%s*(%S*)%s*(%S*)%s*$")
+		if flag ~= "" and flag ~= "overwrite" then
+			return false, "craftpipe: usage: /craftpipe_export <name> [overwrite]"
+		end
+		local ok, result = craftpipe.export(pos1, pos2, name, flag == "overwrite")
+		if ok then
+			-- Corners are used once, so a later WorldEdit selection is not
+			-- shadowed by corners left over from this export.
+			export_corners[player_name] = nil
+		end
 		return ok, "craftpipe: " .. (ok and result.message or result)
 	end,
 })

@@ -101,7 +101,7 @@ local function run(job)
 			local p2 = step.export.region and vector.new(unpack(step.export.region[2]))
 				or vector.new(origin.x + job.size[1] - 1, origin.y + job.size[2] - 1,
 					origin.z + job.size[3] - 1)
-			local ok, res = craftpipe.export(p1, p2, step.export.name)
+			local ok, res = craftpipe.export(p1, p2, step.export.name, step.export.overwrite)
 			table.insert(result.exports, {ok = ok, message = ok and res.message or res,
 				containers = ok and res.containers or nil})
 		end

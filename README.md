@@ -135,7 +135,9 @@ Java 1.21.1.
    If you use WorldEdit, its selection is used when no corners were set.
    This writes `build.mts` and `build.craftpipe.json` into
    `<world>/schems/`. The second file carries what `.mts` cannot:
-   container contents and lectern pages.
+   container contents and lectern pages. An existing name is not
+   replaced unless you add the word `overwrite`, and a region that has
+   not been fully generated is refused.
 
 2. On the command line:
 
@@ -154,9 +156,11 @@ and deliberate dots; container contents. An item with no Minecraft
 equivalent becomes a filler of the same stack size (cobblestone, snowball
 or wooden shovel), with a warning, so comparator signals are kept.
 
-A node with no Minecraft equivalent stops the conversion and is listed
-with its count and positions, as in the other direction.
-`--allow-unmapped` puts bedrock there instead.
+A node with no Minecraft 1.21.1 equivalent stops the conversion and is
+listed with its count and positions, as in the other direction. That
+includes blocks Mineclonia has but Minecraft 1.21.1 does not yet (pale
+oak), and components turned to an orientation the converter does not
+recognise. `--allow-unmapped` puts bedrock there instead.
 
 Things to know:
 
@@ -168,15 +172,25 @@ Things to know:
   too, but has no manifest, so containers come out empty; the converter
   says so.
 - Mineclonia does not keep a facing for levers and buttons on floors and
-  ceilings, or for upright barrels, so those come back with a default
-  one. It does not affect behaviour.
+  ceilings, so those come back with a default one; upright barrels come
+  back lying on their side. Neither affects behaviour.
+- A button that was pressed at the moment of export is written released,
+  with a warning: Minecraft cannot release a button loaded as pressed.
+- Lit furnaces and open barrels come back unlit and closed.
 - Lectern books come back with the right number of pages and the right
   page open, but blank.
 
-This direction is tested the same way as the other: each test circuit is
-loaded into a Mineclonia world with the Java-rules mod, exported,
-converted back, and run in a real Minecraft server, where it must behave
-exactly like the original circuit, output by output and tick by tick.
+This direction is tested in the real engines. Six sets of test circuits
+are loaded into a Mineclonia world with the Java-rules mod, exported,
+converted back and run in a real Minecraft server, where every output
+must match the original circuit's (and, for the timing circuits, every
+tick). A structure placed by hand in Mineclonia, never having been in
+Minecraft, is also exported, converted and checked there.
+
+What is not tested: the chat commands themselves (the tests call the
+function behind them), and opening the files in Litematica or WorldEdit.
+The files follow the published formats and the test server accepts their
+contents, but neither tool has been tried.
 
 ## What is supported
 

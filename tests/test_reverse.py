@@ -76,7 +76,7 @@ def test_every_supported_block_state_round_trips():
             want = "minecraft:air" if mc.endswith("air") else mc
             assert again.get(0, 0, 0).name == want, state
             checked += 1
-    assert checked >= 700       # every state of every supported block
+    assert checked >= 600       # every remaining state of every supported block (634 today)
 
 
 def one(state, entity=None):
@@ -230,7 +230,7 @@ def test_missing_manifest_warns_that_containers_are_empty():
 
 
 @pytest.mark.parametrize("ext", ["litematic", "schem"])
-def test_to_minecraft_writes_a_file_minecraft_tools_can_read(tmp_path, ext):
+def test_to_minecraft_writes_both_formats_and_reads_them_back(tmp_path, ext):
     g = VoxelGrid((2, 1, 3))
     g.set(0, 0, 0, P("repeater[delay=2,facing=north,locked=false,powered=false]"))
     g.set(1, 0, 2, P("white_wool"))
