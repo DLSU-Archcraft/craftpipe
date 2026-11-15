@@ -32,14 +32,20 @@ def _unpack(longs, bits: int, count: int) -> list[int]:
 
 
 def _pack(values, bits: int) -> nbt.LongArray:
-    total = 0
-    for i, value in enumerate(values):
-        total |= value << (i * bits)
     n_longs = max(1, (len(values) * bits + 63) // 64)
     out = []
-    for i in range(n_longs):
-        word = (total >> (64 * i)) & _MASK64
+    word = filled = 0                 # bits collected for the current long
+    for value in values:
+        word |= value << filled
+        filled += bits
+        if filled >= 64:
+            low = word & _MASK64
+            out.append(low - (1 << 64) if low >> 63 else low)
+            word >>= 64
+            filled -= 64
+    if filled:
         out.append(word - (1 << 64) if word >> 63 else word)
+    out += [0] * (n_longs - len(out))
     return nbt.LongArray(out)
 
 

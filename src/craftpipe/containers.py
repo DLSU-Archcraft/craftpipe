@@ -190,10 +190,10 @@ def _page_count(book) -> int:
 def lectern_meta(grid: VoxelGrid) -> list[dict]:
     """Metadata that makes Mineclonia's lectern give the same page signal."""
     out = []
-    for pos, entity in grid.block_entities.items():
-        state = grid.get(*pos)
+    for pos, state in grid.cells():
         if state.name != "minecraft:lectern" or state.get("has_book") != "true":
             continue
+        entity = grid.block_entities.get(pos, {})     # no data: a one-page book
         pages = _page_count(entity.get("Book"))
         try:
             page = int(entity.get("Page", 0)) + 1

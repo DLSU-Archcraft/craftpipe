@@ -33,48 +33,69 @@ PLACEHOLDER = BlockState("minecraft:bedrock")
 _WIRE = re.compile(r"mcl_redstone:wire_([0-9a-f]{2})$")
 _DOT = "mcl_redstone:redstone"
 
-# Nodes Mineclonia switches to while running. They map to the same block
-# as their resting form, with the extra properties given here.
+# Nodes Mineclonia switches to while running, and the resting node each
+# stands for. Minecraft works the running state out again by itself.
 _RUNTIME = {
-    "mcl_furnaces:furnace_active": ("mcl_furnaces:furnace", {"lit": "true"}),
-    "mcl_blast_furnace:blast_furnace_active": ("mcl_blast_furnace:blast_furnace", {"lit": "true"}),
-    "mcl_smoker:smoker_active": ("mcl_smoker:smoker", {"lit": "true"}),
-    "mcl_barrels:barrel_open": ("mcl_barrels:barrel_closed", {"open": "true"}),
-    "mcl_chests:trapped_chest_on_small": ("mcl_chests:trapped_chest_small", {}),
-    "mcl_chests:trapped_chest_on_left": ("mcl_chests:trapped_chest_left", {}),
-    "mcl_chests:trapped_chest_on_right": ("mcl_chests:trapped_chest_right", {}),
-    "mcl_target:target_on": ("mcl_target:target_off", {}),
+    "mcl_furnaces:furnace_active": "mcl_furnaces:furnace",
+    "mcl_blast_furnace:blast_furnace_active": "mcl_blast_furnace:blast_furnace",
+    "mcl_smoker:smoker_active": "mcl_smoker:smoker",
+    "mcl_barrels:barrel_open": "mcl_barrels:barrel_closed",
+    "mcl_chests:trapped_chest_on_small": "mcl_chests:trapped_chest_small",
+    "mcl_chests:trapped_chest_on_left": "mcl_chests:trapped_chest_left",
+    "mcl_chests:trapped_chest_on_right": "mcl_chests:trapped_chest_right",
+    "mcl_target:target_on": "mcl_target:target_off",
 }
+# param2 bits that are state, not orientation, and are dropped before lookup.
+_PARAM2_MODULO = (
+    ("mcl_comparators:", 4),        # the rest is output strength
+    ("mcl_dispensers:", 32),        # +32 while triggered
+    ("mcl_lectern:", 128),          # +128 while giving its page pulse
+)
+_PRESSED_BUTTON = re.compile(r"mcl_buttons:button_.+_on$")
+_TOO_NEW = "this block exists only in Minecraft versions after 1.21.1"
+_BAD_ORIENTATION = "placed in an orientation craftpipe does not recognise (param2 {})"
 # Minecraft filler items by stack size, for items with no equivalent.
 _FILLER = {64: "minecraft:cobblestone", 16: "minecraft:snowball", 1: "minecraft:wooden_shovel"}
 
 
 @functools.lru_cache(maxsize=None)
-def _lookup() -> dict:
-    """(node name, param2) -> BlockState in mirrored space. Where several
-    Minecraft states give the same node (a floor lever's facing, say), the
-    first in the rule's declared order is used."""
+def _tables() -> tuple[dict, dict, frozenset]:
+    """Returns (lookup, param2 values per node, nodes too new for 1.21.1).
+
+    lookup: (node name, param2) -> BlockState in mirrored space. Where
+    several Minecraft states give the same node (a floor lever's facing,
+    say), the first in the rule's declared order is used."""
     table = load_table()
-    out: dict = {}
+    since = table.get("since", {})
+    lookup: dict = {}
+    too_new = set()
     for mc, row in table["blocks"].items():
+        newer = since.get(mc, 0) > DATA_VERSION
         if isinstance(row, str):
-            if row != "air":
-                out.setdefault((row, 0), BlockState(mc))
-            continue
-        domain = rules.DOMAINS[row["rule"]]
-        extra = {k: v for k, v in row.items() if k != "rule"}
-        keys = list(domain)
-        for values in itertools.product(*(domain[k] for k in keys)):
-            state = BlockState(mc, tuple(zip(keys, values)))
-            node = rules.RULES[row["rule"]](state, **extra)
-            if node is not None and not node.name.startswith("mcl_redstone:"):
-                out.setdefault((node.name, node.param2), state)
-    return out
+            produced = [(rules.Node(row, 0), BlockState(mc))] if row != "air" else []
+        else:
+            domain = rules.DOMAINS[row["rule"]]
+            extra = {k: v for k, v in row.items() if k != "rule"}
+            keys = list(domain)
+            produced = []
+            for values in itertools.product(*(domain[k] for k in keys)):
+                state = BlockState(mc, tuple(zip(keys, values)))
+                node = rules.RULES[row["rule"]](state, **extra)
+                if node is not None and not node.name.startswith("mcl_redstone:"):
+                    produced.append((node, state))
+        for node, state in produced:
+            if newer:
+                too_new.add(node.name)
+            else:
+                lookup.setdefault((node.name, node.param2), state)
+    values: dict = {}
+    for name, p in lookup:
+        values.setdefault(name, set()).add(p)
+    return lookup, values, frozenset(too_new - set(values))
 
 
-@functools.lru_cache(maxsize=None)
-def _names() -> frozenset:
-    return frozenset(name for name, _ in _lookup())
+def _lookup() -> dict:
+    return _tables()[0]
 
 
 def _dust_state(flags: int, param2: int) -> BlockState:
@@ -87,30 +108,35 @@ def _dust_state(flags: int, param2: int) -> BlockState:
     return BlockState("minecraft:redstone_wire", (("power", str(param2 & 15)), *sides.items()))
 
 
-def node_to_state(name: str, param2: int) -> BlockState | None:
-    """The Minecraft state (in mirrored space) for a Mineclonia node."""
+def resolve(name: str, param2: int) -> tuple[BlockState | None, str | None]:
+    """(state in mirrored space, None), or (None, why not)."""
     if name == "air":
-        return AIR
+        return AIR, None
     if name == _DOT:
-        return _dust_state(0, param2)
+        return _dust_state(0, param2), None
     wire = _WIRE.match(name)
     if wire:
-        return _dust_state(int(wire.group(1), 16), param2)
-    extra = {}
-    if name in _RUNTIME:
-        name, extra = _RUNTIME[name]
-    table = _lookup()
-    if name not in _names():
-        return None
-    candidates = [param2]
-    if name.startswith("mcl_comparators:"):
-        candidates = [param2 % 4]                   # the rest is output strength
-    candidates += [param2 % 128, param2 % 32, param2 % 4, 0]
-    for p in candidates:
-        state = table.get((name, p))
-        if state is not None:
-            return state.with_props(**extra) if extra else state
-    return None
+        return _dust_state(int(wire.group(1), 16), param2), None
+    name = _RUNTIME.get(name, name)
+    lookup, values, too_new = _tables()
+    if name in too_new:
+        return None, _TOO_NEW
+    if name not in values:
+        return None, None
+    if values[name] == {0}:
+        param2 = 0                      # this node keeps no orientation in param2
+    for prefix, modulo in _PARAM2_MODULO:
+        if name.startswith(prefix):
+            param2 %= modulo
+    state = lookup.get((name, param2))
+    if state is None:
+        return None, _BAD_ORIENTATION.format(param2)
+    return state, None
+
+
+def node_to_state(name: str, param2: int) -> BlockState | None:
+    """The Minecraft state (in mirrored space) for a Mineclonia node."""
+    return resolve(name, param2)[0]
 
 
 @functools.lru_cache(maxsize=None)
@@ -193,6 +219,7 @@ def to_grid(size, names, node_ids, param2, manifest: dict | None, *,
     mirrored.data_version = DATA_VERSION
     cache: dict = {}
     comparators = []
+    pressed_buttons = 0
     for z in range(sz):
         for y in range(sy):
             base = mts.index(size, 0, y, z)
@@ -201,17 +228,24 @@ def to_grid(size, names, node_ids, param2, manifest: dict | None, *,
                 if node_id == 0 and names[0] == "air":
                     continue
                 key = (node_id, p2)
-                state = cache.get(key, False)
-                if state is False:
-                    state = cache[key] = node_to_state(names[node_id], p2)
+                hit = cache.get(key)
+                if hit is None:
+                    hit = cache[key] = resolve(names[node_id], p2)
+                state, reason = hit
                 if state is None:
-                    entry = report.unmapped.setdefault(names[node_id], UnmappedEntry())
+                    entry = report.unmapped.setdefault(names[node_id], UnmappedEntry(reason=reason))
                     entry.count += 1
                     if len(entry.positions) < MAX_POSITIONS:
                         entry.positions.append((x, y, z))
                     state = PLACEHOLDER
                 if state == AIR:
                     continue
+                if _PRESSED_BUTTON.match(names[node_id]):
+                    # Minecraft only releases a button through a tick the
+                    # press schedules, which no file can carry: a button
+                    # saved pressed would stay pressed for ever.
+                    state = state.with_props(powered="false")
+                    pressed_buttons += 1
                 mirrored.set(x, y, z, state)
                 if state.name == "minecraft:comparator":
                     comparators.append(((x, y, z), p2 >> 2))
@@ -220,11 +254,17 @@ def to_grid(size, names, node_ids, param2, manifest: dict | None, *,
     if report.unmapped and not allow_unmapped:
         raise UnmappedBlocksError(report)
 
+    if pressed_buttons:
+        report.warn(f"{pressed_buttons} button(s) were pressed at the moment of export; they are "
+                    "written released, because Minecraft cannot release a button loaded as pressed")
     if manifest is None:
-        has_containers = any(s.name in containers.LAYOUTS for s in mirrored.counts())
-        if has_containers:
+        kinds = mirrored.counts()
+        has_containers = any(s.name in containers.LAYOUTS for s in kinds)
+        has_books = any(s.name == "minecraft:lectern" and s.get("has_book") == "true" for s in kinds)
+        if has_containers or has_books:
             report.warn("no .craftpipe.json manifest was found next to the .mts, so containers "
-                        "are empty; export with /craftpipe_export to keep their contents")
+                        "are empty and lectern books have a single page; export with "
+                        "/craftpipe_export to keep them")
         manifest = {}
 
     def at(entry):
@@ -248,6 +288,10 @@ def to_grid(size, names, node_ids, param2, manifest: dict | None, *,
                 and mirrored.get(*pos).get("has_book") == "true":
             fields = entry.get("fields")
             mirrored.block_entities[pos] = _lectern_entity(fields if isinstance(fields, dict) else {})
+    for pos, state in list(mirrored.cells()):
+        if state.name == "minecraft:lectern" and state.get("has_book") == "true" \
+                and pos not in mirrored.block_entities:
+            mirrored.block_entities[pos] = _lectern_entity({})
     for pos, signal in comparators:
         mirrored.block_entities[pos] = {"id": "minecraft:comparator",
                                         "OutputSignal": nbt.Int(max(0, min(15, signal)))}

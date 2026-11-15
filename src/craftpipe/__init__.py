@@ -56,6 +56,9 @@ def to_minecraft(mts_path, output_path=None, *, allow_unmapped: bool = False):
     (nothing written) when a node has no Minecraft equivalent."""
     from . import litematic, reverse, schem
 
+    if output_path is not None and not os.fspath(output_path).endswith((".litematic", ".schem")):
+        raise CraftpipeError("the output file must end in .litematic (Litematica) or .schem "
+                             "(WorldEdit); other formats are not written")
     size, names, node_ids, param2, manifest = reverse.read_export(mts_path)
     grid, report = reverse.to_grid(size, names, node_ids, param2, manifest,
                                    allow_unmapped=allow_unmapped)

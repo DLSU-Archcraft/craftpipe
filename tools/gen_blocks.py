@@ -118,7 +118,11 @@ existing = json.loads(path.read_text()) if path.exists() else {"blocks": {}, "un
 merged = {**existing.get("blocks", {}), **blocks}
 out = {"blocks": dict(sorted(merged.items())),
        "unsupported": dict(sorted({**existing.get("unsupported", {}), **unsupported}.items())),
-       "warnings": dict(sorted(warnings.items()))}
+       "warnings": dict(sorted(warnings.items())),
+       # Minecraft data version a block first exists in, where that is later
+       # than 1.21.1 (3955). Converting *to* Minecraft 1.21.1 must not write
+       # these: an unknown block loads as air.
+       "since": {mc: 4189 for mc in sorted(merged) if "pale_oak" in mc}}    # 1.21.4
 path.write_text(json.dumps(out, indent=1) + "\n")
 print(len(out["blocks"]), "rows")
 

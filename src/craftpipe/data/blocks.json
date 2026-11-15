@@ -363,5 +363,10 @@
  },
  "warnings": {
   "minecraft:lectern": "lecterns keep their comparator page signal, but the book's text is not carried over"
+ },
+ "since": {
+  "minecraft:pale_oak_button": 4189,
+  "minecraft:pale_oak_planks": 4189,
+  "minecraft:pale_oak_slab": 4189
  }
 }
