@@ -138,3 +138,35 @@ def test_report_json_shape():
     assert data["counts"]["mcl_core:stone"] == 1
     assert data["warnings"] == []
     json.dumps(data)
+
+
+def test_lever_rule():
+    conv = mapper.map_grid(grid_of("lever[face=floor,facing=north,powered=false]",
+                                   "lever[face=floor,facing=north,powered=true]"))
+    assert node_at(conv, (0, 0, 0))[0] == "mcl_lever:lever_off"
+    assert node_at(conv, (1, 0, 0))[0] == "mcl_lever:lever_on"
+
+
+def test_lever_wall_facings_are_distinct_and_mirrored():
+    seen = {}
+    for facing in ("north", "south", "east", "west"):
+        conv = mapper.map_grid(grid_of(f"lever[face=wall,facing={facing},powered=false]"))
+        seen[facing] = node_at(conv, (0, 0, 0))[1]
+    assert len(set(seen.values())) == 4
+    # Luanti facedir of the support block's direction: 0=+Z 1=+X 2=-Z 3=-X.
+    # MC facing=north (lever sticks out to -Z, support at +Z) mirrors to
+    # support at -Z -> facedir 2.
+    assert seen == {"north": 2, "south": 0, "east": 3, "west": 1}
+
+
+def test_dust_rule_carries_power():
+    conv = mapper.map_grid(grid_of("redstone_wire[power=7,north=side,south=none,east=none,west=up]",
+                                   "redstone_wire[power=0]"))
+    assert node_at(conv, (0, 0, 0)) == ("mcl_redstone:redstone", 0x77)
+    assert node_at(conv, (1, 0, 0)) == ("mcl_redstone:redstone", 0)
+
+
+def test_lamp_rule():
+    conv = mapper.map_grid(grid_of("redstone_lamp[lit=false]", "redstone_lamp[lit=true]", "redstone_lamp"))
+    assert [node_at(conv, (i, 0, 0))[0] for i in range(3)] == [
+        "mcl_redstone_lamp:lamp_off", "mcl_redstone_lamp:lamp_on", "mcl_redstone_lamp:lamp_off"]

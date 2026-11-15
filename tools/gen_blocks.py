@@ -1,6 +1,6 @@
 """Regenerate the simple one-to-one rows of src/craftpipe/data/blocks.json.
 
-Rows that need a rule (redstone components, containers) are kept in
+Rows that need a rule (redstone components, containers) are in
 RULE_ROWS below. Run:  python tools/gen_blocks.py
 """
 
@@ -69,6 +69,13 @@ for mc, mcl in WOODS.items():
     slabs[mc] = mcl
 for mc, mcl in slabs.items():
     blocks[f"minecraft:{mc}_slab"] = {"rule": "slab", "base": f"mcl_stairs:slab_{mcl}"}
+
+RULE_ROWS = {
+    "minecraft:redstone_wire": {"rule": "dust"},
+    "minecraft:redstone_lamp": {"rule": "lamp"},
+    "minecraft:lever": {"rule": "lever"},
+}
+blocks.update(RULE_ROWS)
 
 unsupported = {
     **{f"minecraft:{n}": "pistons are not supported"

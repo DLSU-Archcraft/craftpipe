@@ -112,6 +112,9 @@
    "base": "mcl_stairs:slab_jungle"
   },
   "minecraft:lapis_block": "mcl_core:lapisblock",
+  "minecraft:lever": {
+   "rule": "lever"
+  },
   "minecraft:light_blue_concrete": "mcl_colorblocks:concrete_light_blue",
   "minecraft:light_blue_stained_glass": "mcl_core:glass_light_blue",
   "minecraft:light_blue_terracotta": "mcl_colorblocks:hardened_clay_light_blue",
@@ -186,6 +189,12 @@
   "minecraft:red_stained_glass": "mcl_core:glass_red",
   "minecraft:red_terracotta": "mcl_colorblocks:hardened_clay_red",
   "minecraft:red_wool": "mcl_wool:red",
+  "minecraft:redstone_lamp": {
+   "rule": "lamp"
+  },
+  "minecraft:redstone_wire": {
+   "rule": "dust"
+  },
   "minecraft:sandstone": "mcl_core:sandstone",
   "minecraft:sandstone_slab": {
    "rule": "slab",
