@@ -107,10 +107,19 @@ unsupported = {
     "minecraft:honey_block": "slime and honey contraptions are not supported",
 }
 
+# Blocks that convert cleanly but are known to behave differently in
+# Mineclonia. The mapper adds the message to the report once per conversion.
+WOODEN_BUTTON = ("wooden buttons stay pressed for 10 redstone ticks in Mineclonia "
+                 "(15 in Minecraft Java); timing that depends on the pulse length will differ")
+warnings = {f"minecraft:{mc}_button": WOODEN_BUTTON for mc in WOODS}
+warnings["minecraft:lectern"] = ("lecterns keep their comparator page signal, but the book's "
+                                 "text is not carried over")
+
 path = pathlib.Path(__file__).resolve().parent.parent / "src/craftpipe/data/blocks.json"
 existing = json.loads(path.read_text()) if path.exists() else {"blocks": {}, "unsupported": {}}
 merged = {**existing.get("blocks", {}), **blocks}
 out = {"blocks": dict(sorted(merged.items())),
-       "unsupported": dict(sorted({**existing.get("unsupported", {}), **unsupported}.items()))}
+       "unsupported": dict(sorted({**existing.get("unsupported", {}), **unsupported}.items())),
+       "warnings": dict(sorted({**existing.get("warnings", {}), **warnings}.items()))}
 path.write_text(json.dumps(out, indent=1) + "\n")
 print(len(out["blocks"]), "rows")

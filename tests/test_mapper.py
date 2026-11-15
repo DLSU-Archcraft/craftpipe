@@ -257,3 +257,24 @@ def test_every_button_material_resolves():
 def test_simple_redstone_rows():
     assert one("redstone_block")[0] == "mcl_redstone_torch:redstoneblock"
     assert one("target")[0] == "mcl_target:target_off"
+
+
+def test_known_difference_warnings():
+    conv = mapper.map_grid(grid_of("oak_button[face=floor,facing=north,powered=false]",
+                                   "birch_button[face=floor,facing=north,powered=false]",
+                                   "stone_button[face=floor,facing=north,powered=false]",
+                                   "stone"))
+    wooden = [w for w in conv.report.warnings if "wooden button" in w.lower()]
+    assert len(wooden) == 1 and "10" in wooden[0] and "15" in wooden[0]
+    assert len(conv.report.warnings) == 1          # stone buttons and stone do not warn
+
+    conv = mapper.map_grid(grid_of("lectern[facing=north,has_book=true,powered=false]"))
+    assert any("lectern" in w.lower() and "text" in w.lower() for w in conv.report.warnings)
+
+
+def test_warnings_do_not_fail_the_conversion(tmp_path):
+    from craftpipe import schem
+    from craftpipe.cli import main
+    g = grid_of("oak_button[face=floor,facing=north,powered=false]")
+    schem.write_schem(g, tmp_path / "b.schem")
+    assert main(["convert", str(tmp_path / "b.schem")]) == 0

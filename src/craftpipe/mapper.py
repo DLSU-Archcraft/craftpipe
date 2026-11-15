@@ -97,6 +97,7 @@ def map_grid(grid: VoxelGrid, *, allow_unmapped: bool = False, source: str = "")
     node_ids = [0] * volume
     param2 = [0] * volume
     cache: dict[BlockState, tuple] = {}
+    known_differences = load_table().get("warnings", {})
     substituted: dict[str, int] = {}
 
     for (x, y, z), state in mirrored.cells():
@@ -116,6 +117,9 @@ def map_grid(grid: VoxelGrid, *, allow_unmapped: bool = False, source: str = "")
             node = rules.Node(PLACEHOLDER, 0)
         if node.name == "air":
             continue
+        note = known_differences.get(state.name)
+        if note:
+            report.warn(note)
         idx = name_ids.get(node.name)
         if idx is None:
             idx = name_ids[node.name] = len(names)
