@@ -1,0 +1,247 @@
+{
+ "blocks": {
+  "minecraft:acacia_planks": "mcl_trees:wood_acacia",
+  "minecraft:acacia_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_acacia"
+  },
+  "minecraft:air": "air",
+  "minecraft:andesite": "mcl_core:andesite",
+  "minecraft:andesite_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_andesite"
+  },
+  "minecraft:bamboo_planks": "mcl_trees:wood_bamboo",
+  "minecraft:bamboo_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_bamboo"
+  },
+  "minecraft:barrier": "mcl_core:barrier",
+  "minecraft:bedrock": "mcl_core:bedrock",
+  "minecraft:birch_planks": "mcl_trees:wood_birch",
+  "minecraft:birch_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_birch"
+  },
+  "minecraft:black_concrete": "mcl_colorblocks:concrete_black",
+  "minecraft:black_stained_glass": "mcl_core:glass_black",
+  "minecraft:black_terracotta": "mcl_colorblocks:hardened_clay_black",
+  "minecraft:black_wool": "mcl_wool:black",
+  "minecraft:blue_concrete": "mcl_colorblocks:concrete_blue",
+  "minecraft:blue_stained_glass": "mcl_core:glass_blue",
+  "minecraft:blue_terracotta": "mcl_colorblocks:hardened_clay_blue",
+  "minecraft:blue_wool": "mcl_wool:blue",
+  "minecraft:brick_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_brick_block"
+  },
+  "minecraft:bricks": "mcl_core:brick_block",
+  "minecraft:brown_concrete": "mcl_colorblocks:concrete_brown",
+  "minecraft:brown_stained_glass": "mcl_core:glass_brown",
+  "minecraft:brown_terracotta": "mcl_colorblocks:hardened_clay_brown",
+  "minecraft:brown_wool": "mcl_wool:brown",
+  "minecraft:cave_air": "air",
+  "minecraft:cherry_planks": "mcl_trees:wood_cherry_blossom",
+  "minecraft:cherry_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_cherry_blossom"
+  },
+  "minecraft:chiseled_stone_bricks": "mcl_core:stonebrickcarved",
+  "minecraft:coal_block": "mcl_core:coalblock",
+  "minecraft:cobblestone": "mcl_core:cobble",
+  "minecraft:cobblestone_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_cobble"
+  },
+  "minecraft:cracked_stone_bricks": "mcl_core:stonebrickcracked",
+  "minecraft:crimson_planks": "mcl_trees:wood_crimson",
+  "minecraft:crimson_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_crimson"
+  },
+  "minecraft:cut_sandstone": "mcl_core:sandstonesmooth",
+  "minecraft:cyan_concrete": "mcl_colorblocks:concrete_cyan",
+  "minecraft:cyan_stained_glass": "mcl_core:glass_cyan",
+  "minecraft:cyan_terracotta": "mcl_colorblocks:hardened_clay_cyan",
+  "minecraft:cyan_wool": "mcl_wool:cyan",
+  "minecraft:dark_oak_planks": "mcl_trees:wood_dark_oak",
+  "minecraft:dark_oak_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_dark_oak"
+  },
+  "minecraft:deepslate": "mcl_deepslate:deepslate",
+  "minecraft:deepslate_brick_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_deepslate_bricks"
+  },
+  "minecraft:deepslate_bricks": "mcl_deepslate:deepslate_bricks",
+  "minecraft:deepslate_tile_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_deepslate_tiles"
+  },
+  "minecraft:deepslate_tiles": "mcl_deepslate:deepslate_tiles",
+  "minecraft:diamond_block": "mcl_core:diamondblock",
+  "minecraft:diorite": "mcl_core:diorite",
+  "minecraft:diorite_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_diorite"
+  },
+  "minecraft:dirt": "mcl_core:dirt",
+  "minecraft:emerald_block": "mcl_core:emeraldblock",
+  "minecraft:glass": "mcl_core:glass",
+  "minecraft:glowstone": "mcl_nether:glowstone",
+  "minecraft:gold_block": "mcl_core:goldblock",
+  "minecraft:granite": "mcl_core:granite",
+  "minecraft:granite_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_granite"
+  },
+  "minecraft:grass_block": "mcl_core:dirt_with_grass",
+  "minecraft:gray_concrete": "mcl_colorblocks:concrete_grey",
+  "minecraft:gray_stained_glass": "mcl_core:glass_grey",
+  "minecraft:gray_terracotta": "mcl_colorblocks:hardened_clay_grey",
+  "minecraft:gray_wool": "mcl_wool:grey",
+  "minecraft:green_concrete": "mcl_colorblocks:concrete_green",
+  "minecraft:green_stained_glass": "mcl_core:glass_green",
+  "minecraft:green_terracotta": "mcl_colorblocks:hardened_clay_green",
+  "minecraft:green_wool": "mcl_wool:green",
+  "minecraft:iron_block": "mcl_core:ironblock",
+  "minecraft:jungle_planks": "mcl_trees:wood_jungle",
+  "minecraft:jungle_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_jungle"
+  },
+  "minecraft:lapis_block": "mcl_core:lapisblock",
+  "minecraft:light_blue_concrete": "mcl_colorblocks:concrete_light_blue",
+  "minecraft:light_blue_stained_glass": "mcl_core:glass_light_blue",
+  "minecraft:light_blue_terracotta": "mcl_colorblocks:hardened_clay_light_blue",
+  "minecraft:light_blue_wool": "mcl_wool:light_blue",
+  "minecraft:light_gray_concrete": "mcl_colorblocks:concrete_silver",
+  "minecraft:light_gray_stained_glass": "mcl_core:glass_silver",
+  "minecraft:light_gray_terracotta": "mcl_colorblocks:hardened_clay_silver",
+  "minecraft:light_gray_wool": "mcl_wool:silver",
+  "minecraft:lime_concrete": "mcl_colorblocks:concrete_lime",
+  "minecraft:lime_stained_glass": "mcl_core:glass_lime",
+  "minecraft:lime_terracotta": "mcl_colorblocks:hardened_clay_lime",
+  "minecraft:lime_wool": "mcl_wool:lime",
+  "minecraft:magenta_concrete": "mcl_colorblocks:concrete_magenta",
+  "minecraft:magenta_stained_glass": "mcl_core:glass_magenta",
+  "minecraft:magenta_terracotta": "mcl_colorblocks:hardened_clay_magenta",
+  "minecraft:magenta_wool": "mcl_wool:magenta",
+  "minecraft:mangrove_planks": "mcl_trees:wood_mangrove",
+  "minecraft:mangrove_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_mangrove"
+  },
+  "minecraft:mossy_stone_bricks": "mcl_core:stonebrickmossy",
+  "minecraft:oak_planks": "mcl_trees:wood_oak",
+  "minecraft:oak_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_oak"
+  },
+  "minecraft:obsidian": "mcl_core:obsidian",
+  "minecraft:orange_concrete": "mcl_colorblocks:concrete_orange",
+  "minecraft:orange_stained_glass": "mcl_core:glass_orange",
+  "minecraft:orange_terracotta": "mcl_colorblocks:hardened_clay_orange",
+  "minecraft:orange_wool": "mcl_wool:orange",
+  "minecraft:pale_oak_planks": "mcl_trees:wood_pale_oak",
+  "minecraft:pale_oak_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_pale_oak"
+  },
+  "minecraft:pink_concrete": "mcl_colorblocks:concrete_pink",
+  "minecraft:pink_stained_glass": "mcl_core:glass_pink",
+  "minecraft:pink_terracotta": "mcl_colorblocks:hardened_clay_pink",
+  "minecraft:pink_wool": "mcl_wool:pink",
+  "minecraft:polished_andesite": "mcl_core:andesite_smooth",
+  "minecraft:polished_andesite_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_andesite_smooth"
+  },
+  "minecraft:polished_deepslate": "mcl_deepslate:deepslate_polished",
+  "minecraft:polished_deepslate_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_deepslate_polished"
+  },
+  "minecraft:polished_diorite": "mcl_core:diorite_smooth",
+  "minecraft:polished_diorite_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_diorite_smooth"
+  },
+  "minecraft:polished_granite": "mcl_core:granite_smooth",
+  "minecraft:polished_granite_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_granite_smooth"
+  },
+  "minecraft:purple_concrete": "mcl_colorblocks:concrete_purple",
+  "minecraft:purple_stained_glass": "mcl_core:glass_purple",
+  "minecraft:purple_terracotta": "mcl_colorblocks:hardened_clay_purple",
+  "minecraft:purple_wool": "mcl_wool:purple",
+  "minecraft:quartz_block": "mcl_nether:quartz_block",
+  "minecraft:quartz_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_quartzblock"
+  },
+  "minecraft:red_concrete": "mcl_colorblocks:concrete_red",
+  "minecraft:red_stained_glass": "mcl_core:glass_red",
+  "minecraft:red_terracotta": "mcl_colorblocks:hardened_clay_red",
+  "minecraft:red_wool": "mcl_wool:red",
+  "minecraft:sandstone": "mcl_core:sandstone",
+  "minecraft:sandstone_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_sandstone"
+  },
+  "minecraft:sea_lantern": "mcl_ocean:sea_lantern",
+  "minecraft:smooth_quartz": "mcl_nether:quartz_smooth",
+  "minecraft:smooth_quartz_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_quartz_smooth"
+  },
+  "minecraft:smooth_sandstone": "mcl_core:sandstonesmooth2",
+  "minecraft:smooth_stone": "mcl_core:stone_smooth",
+  "minecraft:smooth_stone_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_stone"
+  },
+  "minecraft:spruce_planks": "mcl_trees:wood_spruce",
+  "minecraft:spruce_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_spruce"
+  },
+  "minecraft:stone": "mcl_core:stone",
+  "minecraft:stone_brick_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_stonebrick"
+  },
+  "minecraft:stone_bricks": "mcl_core:stonebrick",
+  "minecraft:stone_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_stone_rough"
+  },
+  "minecraft:terracotta": "mcl_colorblocks:hardened_clay",
+  "minecraft:tinted_glass": "mcl_amethyst:tinted_glass",
+  "minecraft:void_air": "air",
+  "minecraft:warped_planks": "mcl_trees:wood_warped",
+  "minecraft:warped_slab": {
+   "rule": "slab",
+   "base": "mcl_stairs:slab_warped"
+  },
+  "minecraft:white_concrete": "mcl_colorblocks:concrete_white",
+  "minecraft:white_stained_glass": "mcl_core:glass_white",
+  "minecraft:white_terracotta": "mcl_colorblocks:hardened_clay_white",
+  "minecraft:white_wool": "mcl_wool:white",
+  "minecraft:yellow_concrete": "mcl_colorblocks:concrete_yellow",
+  "minecraft:yellow_stained_glass": "mcl_core:glass_yellow",
+  "minecraft:yellow_terracotta": "mcl_colorblocks:hardened_clay_yellow",
+  "minecraft:yellow_wool": "mcl_wool:yellow"
+ },
+ "unsupported": {
+  "minecraft:honey_block": "slime and honey contraptions are not supported",
+  "minecraft:moving_piston": "pistons are not supported",
+  "minecraft:observer": "observers are not supported",
+  "minecraft:piston": "pistons are not supported",
+  "minecraft:piston_head": "pistons are not supported",
+  "minecraft:slime_block": "slime and honey contraptions are not supported",
+  "minecraft:sticky_piston": "pistons are not supported"
+ }
+}
