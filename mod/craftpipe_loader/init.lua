@@ -202,6 +202,10 @@ local function restore_dust_shapes(origin, wires)
 			if wanted ~= node.name and core.registered_nodes[wanted] then
 				core.swap_node(pos, {name = wanted, param2 = node.param2})
 			end
+			-- A dust Minecraft saved as a dot was made a dot on purpose.
+			-- The craftpipe_java_rules mod, if loaded, keeps such dots and
+			-- turns any other unconnected dust into a cross.
+			core.get_meta(pos):set_string("java_dot", wanted == DOT and "1" or "")
 		end
 	end
 end
