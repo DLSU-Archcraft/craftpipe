@@ -151,7 +151,7 @@ def _container_entity(block: str, entry: dict | None, where, report: Report) -> 
     slots, lists = containers.LAYOUTS[block]
     items = []
     for list_name, mc_slots in lists.items():
-        stacks = (entry or {}).get("lists", {}).get(list_name, [])
+        stacks = ((entry or {}).get("lists") or {}).get(list_name, [])
         for stack in stacks if isinstance(stacks, list) else []:
             try:
                 index = int(stack["slot"]) - 1

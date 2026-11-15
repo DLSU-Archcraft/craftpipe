@@ -249,3 +249,13 @@ def test_to_minecraft_default_output_and_manifest_mismatch(tmp_path):
     (tmp_path / "build.craftpipe.json").write_text(json.dumps(manifest))
     with pytest.raises(craftpipe.CraftpipeError, match="does not belong"):
         craftpipe.to_minecraft(tmp_path / "build.mts")
+
+
+def test_manifest_written_by_lua_with_null_for_empty_tables():
+    # Luanti writes an empty table as null.
+    m = {"format": 1, "size": [1, 1, 1], "meta": None,
+         "containers": [{"pos": [0, 0, 0], "node": "mcl_chests:chest_small", "lists": None}]}
+    grid, _ = reverse.to_grid((1, 1, 1), ["air", "mcl_chests:chest_small"], [1], [0], m)
+    assert grid.block_entities[(0, 0, 0)]["Items"] == []
+    m["containers"] = None
+    reverse.to_grid((1, 1, 1), ["air", "mcl_chests:chest_small"], [1], [0], m)

@@ -1,9 +1,14 @@
 # craftpipe
 
-Converts Minecraft redstone schematics (`.litematic`, Sponge `.schem`) into
-Mineclonia schematics (`.mts`) for Luanti, so that computer-architecture
-builds (adders, ALUs, ROM, CPUs) made in Minecraft can be run and graded
-without Minecraft.
+Converts redstone builds between Minecraft Java and Mineclonia (Luanti),
+in both directions, so that computer-architecture builds (adders, ALUs,
+ROM, CPUs) made in one can be run and graded in the other. It also
+measures where the two games' redstone differs, and ships a mod that
+makes Mineclonia follow Java where it does.
+
+Minecraft schematics (`.litematic`, Sponge `.schem`) become Mineclonia
+schematics (`.mts`), and exported Mineclonia regions become Minecraft
+schematics.
 
 A conversion produces two files:
 
@@ -113,6 +118,65 @@ The loader treats both files as untrusted:
 
 Re-converting a build and placing it again works without restarting the
 server; the loader does not use Luanti's by-name schematic cache.
+
+## Convert a Mineclonia build to Minecraft
+
+Builds made (or changed) in a Mineclonia world can go back to Minecraft
+Java 1.21.1.
+
+1. In the game, with the `server` privilege, mark the region and export:
+
+   ```
+   /craftpipe_pos1          (standing at one corner)
+   /craftpipe_pos2          (standing at the opposite corner)
+   /craftpipe_export build
+   ```
+
+   If you use WorldEdit, its selection is used when no corners were set.
+   This writes `build.mts` and `build.craftpipe.json` into
+   `<world>/schems/`. The second file carries what `.mts` cannot:
+   container contents and lectern pages.
+
+2. On the command line:
+
+   ```
+   $ craftpipe to-minecraft build.mts
+   build.litematic: 3301 blocks, Minecraft Java 1.21.1
+   ```
+
+   Use `-o build.schem` for a WorldEdit schematic. As a library:
+   `craftpipe.to_minecraft("build.mts")`.
+
+What carries over: the same blocks the forward direction supports, with
+their orientation; lever positions, torches, repeater delay and lock,
+comparator mode and output; every dust with its exact connections, power
+and deliberate dots; container contents. An item with no Minecraft
+equivalent becomes a filler of the same stack size (cobblestone, snowball
+or wooden shovel), with a warning, so comparator signals are kept.
+
+A node with no Minecraft equivalent stops the conversion and is listed
+with its count and positions, as in the other direction.
+`--allow-unmapped` puts bedrock there instead.
+
+Things to know:
+
+- **Use the Java-rules mod in the world.** Without it, Mineclonia shapes
+  dust by its own rules (towards lamps and hoppers, dots for unconnected
+  dust), and the export faithfully carries those shapes to Minecraft,
+  where the circuit may then behave differently.
+- A `.mts` saved by other means (WorldEdit's `//mtschemcreate`) converts
+  too, but has no manifest, so containers come out empty; the converter
+  says so.
+- Mineclonia does not keep a facing for levers and buttons on floors and
+  ceilings, or for upright barrels, so those come back with a default
+  one. It does not affect behaviour.
+- Lectern books come back with the right number of pages and the right
+  page open, but blank.
+
+This direction is tested the same way as the other: each test circuit is
+loaded into a Mineclonia world with the Java-rules mod, exported,
+converted back, and run in a real Minecraft server, where it must behave
+exactly like the original circuit, output by output and tick by tick.
 
 ## What is supported
 
