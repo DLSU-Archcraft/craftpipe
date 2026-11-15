@@ -122,8 +122,12 @@ def test_render_marks_documented_entries():
         entry(id="a", title="First", explanation="Why one."),
         entry(id="b", title="Second", explanation="Why two.", established="documented"),
     ])
-    assert "- **First.** Why one." in text
-    assert "- **Second.** Why two. *(Minecraft's side is taken from documentation, not measured.)*" in text
+    assert "- **First.** Why one. *Still present with `craftpipe_java_rules`.*" in text
+    fixed = render_differences.render([entry(id="c", title="Third", explanation="Why three.",
+                                             with_java_rules="fixed")])
+    assert fixed == "- **Third.** Why three. *Removed by `craftpipe_java_rules`.*"
+    assert ("- **Second.** Why two. *(Minecraft's side is taken from documentation, not measured.)* "
+            "*Still present with `craftpipe_java_rules`.*") in text
 
 
 def test_readme_differences_section_is_in_sync():

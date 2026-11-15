@@ -158,3 +158,52 @@ def test_player_made_dot_stays_a_dot(module_engine_java):
     for step in out:
         assert step["dust"]["name"] == "mcl_redstone:redstone"
         assert step["lamp"]["on"] is False
+
+
+MC_TO_LUANTI_BIT = {"north": 0x4, "south": 0x1, "west": 0x2, "east": 0x8}   # Z is mirrored
+
+
+def test_dust_beside_other_blocks_connects_as_in_minecraft(module_minecraft, module_engine_java):
+    """Real Minecraft decides what each dust connects to; Mineclonia with
+    the mod, shaping the same dust itself, must decide the same."""
+    circuit = suites.dust_beside_blocks()
+    minecraft = module_minecraft.dust_shapes(circuit)
+    assert len(minecraft) == len(circuit.outputs)
+    names = sorted(circuit.outputs)
+    out = module_engine_java.run(suites.dust_beside_blocks(), [{"read": names}], native=True)
+    wrong = {}
+    for name in names:
+        pos = circuit.outputs[name]
+        want = sum(MC_TO_LUANTI_BIT[side] for side in minecraft[pos])
+        node = out[0][name]["name"]
+        got = int(node[-2:], 16) & 15 if node.startswith("mcl_redstone:wire_") else 0
+        if got != want:
+            beside = circuit.grid.get(pos[0], pos[1], pos[2] - 1).name
+            wrong[beside] = (sorted(minecraft[pos]), f"{got:x}")
+    assert not wrong, wrong
+
+
+def test_mod_loads_without_the_loader(tmp_path):
+    """The mod is independent of craftpipe_loader."""
+    import shutil
+    import subprocess
+    from harness import luanti
+    luanti.require_luanti()
+    world = tmp_path / "world"
+    (world / "worldmods/stopper").mkdir(parents=True)
+    shutil.copytree(luanti.REPO / "mod/craftpipe_java_rules", world / "worldmods/craftpipe_java_rules")
+    (world / "worldmods/stopper/mod.conf").write_text("name = stopper\ndepends = craftpipe_java_rules\n")
+    (world / "worldmods/stopper/init.lua").write_text(
+        "core.after(0, function() core.request_shutdown('done', false, 0) end)\n")
+    (world / "world.mt").write_text("gameid = mineclonia\nbackend = sqlite3\nplayer_backend = sqlite3\n"
+                                    "auth_backend = sqlite3\nmod_storage_backend = sqlite3\n")
+    (world / "luanti.conf").write_text(f"mg_name = singlenode\nport = {luanti._free_port()}\n"
+                                       "bind_address = 127.0.0.1\nserver_announce = false\n")
+    proc = subprocess.run([luanti.LUANTI, "--server", "--world", str(world), "--config",
+                           str(world / "luanti.conf"), "--logfile", str(world / "debug.txt")],
+                          capture_output=True, text=True, timeout=180)
+    log = (world / "debug.txt").read_text(errors="replace")
+    assert proc.returncode == 0, log[-2000:]
+    assert "ModError" not in log
+    assert "[craftpipe_java_rules] dust no longer connects to" in log
+    assert "mcl_redstone_lamp:lamp_off" in log and "mcl_hoppers:hopper" in log

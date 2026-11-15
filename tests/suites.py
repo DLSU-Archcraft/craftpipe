@@ -566,6 +566,47 @@ def _through_block_dust(n_dust):
     return c
 
 
+def _furnace_behind_powered():
+    """A furnace (signal 5) directly behind the comparator, itself powered
+    at 15 by a repeater. A container right behind the comparator is always
+    read, however strongly it is powered."""
+    c = Circuit((6, 2, 1))
+    c.input("in", (0, 1, 0)).dust((1, 1, 0)).block(2, 1, 0, _repeater("west"))
+    c.block(3, 1, 0, "minecraft:furnace[facing=north,lit=false]")
+    c.grid.block_entities[(3, 1, 0)] = {"id": "minecraft:furnace",
+                                        "Items": stacks("minecraft:redstone", 64)}
+    c.block(4, 1, 0, "minecraft:comparator[facing=west,mode=compare,powered=false]")
+    c.dust((5, 1, 0)).probe("out", (5, 1, 0))
+    return c
+
+
+def dust_beside_blocks() -> Circuit:
+    """A dust line with a different block beside each dust, for comparing
+    which of them dust connects to. Repeaters are placed side-on."""
+    beside = [
+        "minecraft:redstone_lamp[lit=false]", "minecraft:hopper[enabled=true,facing=down]",
+        "minecraft:dropper[facing=up,triggered=false]", "minecraft:dispenser[facing=up,triggered=false]",
+        _repeater("east"), "minecraft:comparator[facing=east,mode=compare,powered=false]",
+        "minecraft:target[power=0]", "minecraft:redstone_block",
+        "minecraft:chest[facing=north,type=single,waterlogged=false]",
+        "minecraft:trapped_chest[facing=north,type=single,waterlogged=false]",
+        "minecraft:furnace[facing=north,lit=false]", "minecraft:barrel[facing=up,open=false]",
+        "minecraft:lectern[facing=north,has_book=false,powered=false]",
+        "minecraft:redstone_torch[lit=true]", "minecraft:stone", "minecraft:glass",
+        "minecraft:lever[face=floor,facing=north,powered=false]",
+        "minecraft:stone_button[face=floor,facing=north,powered=false]",
+    ]
+    # Two rows of dust separated from each other; blocks sit north of each
+    # dust, with a gap between neighbours so they only touch their own dust.
+    c = Circuit((2 * len(beside) + 1, 2, 3))
+    for i, state in enumerate(beside):
+        x = 2 * i + 1
+        c.block(x, 1, 0, state)
+        c.block(x, 1, 1, "minecraft:redstone_wire[east=side,north=side,power=0,south=side,west=side]")
+        c.probe(f"dust{i}", (x, 1, 1))
+    return c
+
+
 def _dust_on(block):
     """Dust carried over a transparent block; "under" touches only that block."""
     c = Circuit((5, 3, 2))
@@ -614,6 +655,7 @@ TIMING_TILES = {
     "through_block": (_through_block, {"out": None}),
     "through_block_dust15": (lambda: _through_block_dust(1), {"out": None}),
     "container_behind_block_dust14": (lambda: _through_block_dust(2), {"out": None}),
+    "furnace_behind_powered": (_furnace_behind_powered, {"out": None}),
     "dust_beside_lamp": (_dust_beside_lamp, {"end": None, "beside": None}),
     "dust_beside_hopper": (_dust_beside_hopper, {"end": None, "beside": None}),
     "dust_on_glass": (lambda: _dust_on("minecraft:glass"), {"end": None, "under": None}),

@@ -145,7 +145,8 @@ def _warn_about_unstable_dust(dust_cells, size, names, node_ids, report: Report)
             f"{len(affected)} redstone dust next to a lever or button also touch a lamp, hopper, "
             "dropper or dispenser they are not connected to. In Mineclonia they will connect to "
             "it once the lever or button is used, and power it (lighting the lamp, locking the "
-            f"hopper). Source positions: {where}"
+            "hopper), unless the world runs the craftpipe_java_rules mod. "
+            f"Source positions: {where}"
             + (" ..." if len(affected) > MAX_POSITIONS else ""))
 
 

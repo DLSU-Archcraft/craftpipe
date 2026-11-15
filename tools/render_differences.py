@@ -29,6 +29,10 @@ def render(entries) -> str:
         line = f"- **{title}.** {_field(entry, 'explanation')}"
         if _field(entry, "established") == "documented":
             line += " *(Minecraft's side is taken from documentation, not measured.)*"
+        if _field(entry, "with_java_rules") == "fixed":
+            line += " *Removed by `craftpipe_java_rules`.*"
+        else:
+            line += " *Still present with `craftpipe_java_rules`.*"
         lines.append(line)
     return "\n".join(lines) if lines else "None recorded."
 

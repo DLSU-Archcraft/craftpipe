@@ -399,6 +399,21 @@ class MinecraftServer:
                 return Reading(True, None)
         return Reading(False, None)
 
+    def dust_shapes(self, circuit, settle: int = 4) -> dict:
+        """Place a circuit and return, for every redstone dust in it, the
+        set of sides Minecraft itself connected it to:
+        {(x, y, z): {"north", "east", ...}} in the circuit's coordinates."""
+        placed = self._place(circuit)
+        self._advance(placed, settle)
+        shapes = {}
+        for pos, state in circuit.grid.cells():
+            if state.name != "minecraft:redstone_wire":
+                continue
+            wpos = placed.world(pos)
+            shapes[pos] = {side for side in ("north", "east", "south", "west")
+                           if not self._is(wpos, f"minecraft:redstone_wire[{side}=none]")}
+        return shapes
+
     def run(self, circuit, steps, settle: int = 20) -> list[dict]:
         """Same contract as the Luanti Engine.run, with Reading values.
 
