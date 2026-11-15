@@ -17,3 +17,21 @@ def module_engine(tmp_path_factory):
     """One Engine per test module, for tests that share a single server run."""
     require_luanti()
     return Engine(tmp_path_factory.mktemp("engine"))
+
+
+@pytest.fixture
+def minecraft(tmp_path):
+    """A real headless Minecraft server (unmodified), stopped after the test."""
+    from harness import minecraft as mc
+    mc.require_minecraft()
+    with mc.MinecraftServer(tmp_path / "minecraft") as server:
+        yield server
+
+
+@pytest.fixture(scope="module")
+def module_minecraft(tmp_path_factory):
+    """One Minecraft server per test module; circuits are placed side by side."""
+    from harness import minecraft as mc
+    mc.require_minecraft()
+    with mc.MinecraftServer(tmp_path_factory.mktemp("minecraft")) as server:
+        yield server
