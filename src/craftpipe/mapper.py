@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from importlib import resources
 
-from . import __version__, mts, rules
+from . import __version__, containers, mts, rules
 from .errors import UnmappedBlocksError
 from .grid import BlockState, Pos, VoxelGrid
 
@@ -149,7 +149,8 @@ def map_grid(grid: VoxelGrid, *, allow_unmapped: bool = False, source: str = "")
         "size": [sx, sy, sz],
         "complete": not substituted,
         "substituted": dict(sorted(substituted.items())),
-        "containers": [],
-        "meta": [],
+        "containers": containers.extract(
+            mirrored, lambda pos: names[node_ids[mts.index(size, *pos)]], report),
+        "meta": containers.lectern_meta(mirrored),
     }
     return Conversion(size, names, node_ids, param2, manifest, report)

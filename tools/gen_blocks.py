@@ -83,6 +83,18 @@ RULE_ROWS = {
     "minecraft:stone_button": {"rule": "button", "material": "stone"},
     "minecraft:polished_blackstone_button": {"rule": "button", "material": "polished_blackstone"},
 }
+RULE_ROWS.update({
+    "minecraft:chest": {"rule": "chest", "base": "mcl_chests:chest"},
+    "minecraft:trapped_chest": {"rule": "chest", "base": "mcl_chests:trapped_chest"},
+    "minecraft:barrel": {"rule": "front_facing", "node": "mcl_barrels:barrel_closed"},
+    "minecraft:furnace": {"rule": "front_facing", "node": "mcl_furnaces:furnace"},
+    "minecraft:blast_furnace": {"rule": "front_facing", "node": "mcl_blast_furnace:blast_furnace"},
+    "minecraft:smoker": {"rule": "front_facing", "node": "mcl_smoker:smoker"},
+    "minecraft:hopper": {"rule": "hopper"},
+    "minecraft:dropper": {"rule": "dropper", "base": "mcl_dispensers:dropper"},
+    "minecraft:dispenser": {"rule": "dropper", "base": "mcl_dispensers:dispenser"},
+    "minecraft:lectern": {"rule": "lectern"},
+})
 for mc, mcl in WOODS.items():
     RULE_ROWS[f"minecraft:{mc}_button"] = {"rule": "button", "material": mcl}
 blocks.update(RULE_ROWS)

@@ -24,6 +24,10 @@
    "rule": "slab",
    "base": "mcl_stairs:slab_bamboo"
   },
+  "minecraft:barrel": {
+   "rule": "front_facing",
+   "node": "mcl_barrels:barrel_closed"
+  },
   "minecraft:barrier": "mcl_core:barrier",
   "minecraft:bedrock": "mcl_core:bedrock",
   "minecraft:birch_button": {
@@ -39,6 +43,10 @@
   "minecraft:black_stained_glass": "mcl_core:glass_black",
   "minecraft:black_terracotta": "mcl_colorblocks:hardened_clay_black",
   "minecraft:black_wool": "mcl_wool:black",
+  "minecraft:blast_furnace": {
+   "rule": "front_facing",
+   "node": "mcl_blast_furnace:blast_furnace"
+  },
   "minecraft:blue_concrete": "mcl_colorblocks:concrete_blue",
   "minecraft:blue_stained_glass": "mcl_core:glass_blue",
   "minecraft:blue_terracotta": "mcl_colorblocks:hardened_clay_blue",
@@ -61,6 +69,10 @@
   "minecraft:cherry_slab": {
    "rule": "slab",
    "base": "mcl_stairs:slab_cherry_blossom"
+  },
+  "minecraft:chest": {
+   "rule": "chest",
+   "base": "mcl_chests:chest"
   },
   "minecraft:chiseled_stone_bricks": "mcl_core:stonebrickcarved",
   "minecraft:coal_block": "mcl_core:coalblock",
@@ -114,7 +126,19 @@
    "base": "mcl_stairs:slab_diorite"
   },
   "minecraft:dirt": "mcl_core:dirt",
+  "minecraft:dispenser": {
+   "rule": "dropper",
+   "base": "mcl_dispensers:dispenser"
+  },
+  "minecraft:dropper": {
+   "rule": "dropper",
+   "base": "mcl_dispensers:dropper"
+  },
   "minecraft:emerald_block": "mcl_core:emeraldblock",
+  "minecraft:furnace": {
+   "rule": "front_facing",
+   "node": "mcl_furnaces:furnace"
+  },
   "minecraft:glass": "mcl_core:glass",
   "minecraft:glowstone": "mcl_nether:glowstone",
   "minecraft:gold_block": "mcl_core:goldblock",
@@ -132,6 +156,9 @@
   "minecraft:green_stained_glass": "mcl_core:glass_green",
   "minecraft:green_terracotta": "mcl_colorblocks:hardened_clay_green",
   "minecraft:green_wool": "mcl_wool:green",
+  "minecraft:hopper": {
+   "rule": "hopper"
+  },
   "minecraft:iron_block": "mcl_core:ironblock",
   "minecraft:jungle_button": {
    "rule": "button",
@@ -143,6 +170,9 @@
    "base": "mcl_stairs:slab_jungle"
   },
   "minecraft:lapis_block": "mcl_core:lapisblock",
+  "minecraft:lectern": {
+   "rule": "lectern"
+  },
   "minecraft:lever": {
    "rule": "lever"
   },
@@ -258,6 +288,10 @@
    "base": "mcl_stairs:slab_sandstone"
   },
   "minecraft:sea_lantern": "mcl_ocean:sea_lantern",
+  "minecraft:smoker": {
+   "rule": "front_facing",
+   "node": "mcl_smoker:smoker"
+  },
   "minecraft:smooth_quartz": "mcl_nether:quartz_smooth",
   "minecraft:smooth_quartz_slab": {
    "rule": "slab",
@@ -295,6 +329,10 @@
   "minecraft:target": "mcl_target:target_off",
   "minecraft:terracotta": "mcl_colorblocks:hardened_clay",
   "minecraft:tinted_glass": "mcl_amethyst:tinted_glass",
+  "minecraft:trapped_chest": {
+   "rule": "chest",
+   "base": "mcl_chests:trapped_chest"
+  },
   "minecraft:void_air": "air",
   "minecraft:warped_button": {
    "rule": "button",

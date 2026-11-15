@@ -107,11 +107,41 @@ local function construct_nodes(p1, p2)
 	return count
 end
 
+-- Some Mineclonia containers only set themselves up when a player places
+-- them (droppers), or when the game turns a single chest into a double
+-- one, so on_construct alone leaves them without an inventory.
+local function prepare_inventory(pos, inv, sizes)
+	if type(sizes) ~= "table" then
+		return
+	end
+	local missing = false
+	for listname, size in pairs(sizes) do
+		if type(listname) == "string" and inv:get_size(listname) == 0 then
+			missing = true
+		end
+	end
+	if not missing then
+		return
+	end
+	local def = core.registered_nodes[core.get_node(pos).name]
+	if def and def.after_place_node and not def.on_construct then
+		pcall(def.after_place_node, pos, nil, ItemStack(""), nil)
+	end
+	for listname, size in pairs(sizes) do
+		size = tonumber(size)
+		if type(listname) == "string" and size and size >= 1 and size <= 256
+				and inv:get_size(listname) < size then
+			inv:set_size(listname, size)
+		end
+	end
+end
+
 local function apply_containers(origin, manifest)
 	local filled = 0
 	for _, entry in ipairs(manifest.containers or {}) do
 		local pos = world_pos(origin, entry.pos)
 		local inv = core.get_meta(pos):get_inventory()
+		prepare_inventory(pos, inv, entry.sizes)
 		for listname, stacks in pairs(type(entry.lists) == "table" and entry.lists or {}) do
 			local size = inv:get_size(listname)
 			for _, stack in ipairs(type(stacks) == "table" and stacks or {}) do

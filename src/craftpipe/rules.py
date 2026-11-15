@@ -141,3 +141,56 @@ def button(state: BlockState, material: str) -> Optional[Node]:
     if facing not in FACEDIR:
         return None
     return Node(name, WALLMOUNTED[OPPOSITE[facing]])
+
+
+def _front(state: BlockState) -> Optional[int]:
+    """facedir for a node whose front faces the state's `facing`."""
+    facing = state.get("facing", "north")
+    return FACEDIR[OPPOSITE[facing]] if facing in FACEDIR else None
+
+
+@rule("chest")
+def chest(state: BlockState, base: str) -> Optional[Node]:
+    # `type` was already swapped by the Z mirror, so left/right line up
+    # with Mineclonia's own left and right halves.
+    param2 = _front(state)
+    if param2 is None:
+        return None
+    suffix = {"left": "_left", "right": "_right"}.get(state.get("type", "single"), "_small")
+    return Node(base + suffix, param2)
+
+
+@rule("front_facing")
+def front_facing(state: BlockState, node: str) -> Node:
+    """Furnaces, barrels: horizontal facing only matters for looks."""
+    param2 = _front(state)
+    return Node(node, 0 if param2 is None else param2)
+
+
+@rule("hopper")
+def hopper(state: BlockState) -> Optional[Node]:
+    disabled = "_disabled" if state.get("enabled", "true") == "false" else ""
+    facing = state.get("facing", "down")
+    if facing == "down":
+        return Node("mcl_hoppers:hopper" + disabled)
+    if facing not in FACEDIR:
+        return None
+    # mcl_hoppers: output = fourdir_to_dir((param2 + 3) % 4)
+    return Node("mcl_hoppers:hopper_side" + disabled, (FACEDIR[facing] + 1) % 4)
+
+
+@rule("dropper")
+def dropper(state: BlockState, base: str) -> Optional[Node]:
+    facing = state.get("facing", "north")
+    if facing in ("up", "down"):
+        return Node(f"{base}_{facing}")
+    if facing not in FACEDIR:
+        return None
+    return Node(base, FACEDIR[OPPOSITE[facing]])
+
+
+@rule("lectern")
+def lectern(state: BlockState) -> Node:
+    name = "mcl_lectern:lectern_with_book" if state.get("has_book") == "true" else "mcl_lectern:lectern"
+    param2 = _front(state)
+    return Node(name, 0 if param2 is None else param2)
