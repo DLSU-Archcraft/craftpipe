@@ -95,6 +95,19 @@ local function run(job)
 			core.set_node(at(rel), {name = "mcl_core:stone"})
 			core.remove_node(at(rel))
 		end
+		-- Direct world edits, for behaviours a converted build cannot contain.
+		for _, edit in ipairs(step.setnode or {}) do
+			core.set_node(at(edit.pos), {name = edit.name, param2 = edit.param2 or 0})
+		end
+		for _, rel in ipairs(step.remove or {}) do
+			core.remove_node(at(rel))
+		end
+		for _, rel in ipairs(step.rightclick or {}) do
+			local pos = at(rel)
+			local node = core.get_node(pos)
+			core.registered_nodes[node.name].on_rightclick(pos, node, nil, ItemStack(""),
+				{type = "node", under = pos, above = pos})
+		end
 		local function read_all()
 			local reads = {}
 			for i, rel in ipairs(step.read or {}) do

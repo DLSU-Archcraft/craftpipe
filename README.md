@@ -226,13 +226,14 @@ list is in the next section). The mod in `mod/craftpipe_java_rules`
 removes the ones that can be removed:
 
 1. Dust connects only to what Java connects it to: other dust and signal
-   sources (levers, buttons, torches, redstone blocks, pressure plates,
-   comparators, repeater fronts and backs, observers, targets, trapped
-   chests, lecterns, daylight detectors). Lamps, hoppers, droppers,
-   dispensers, note blocks, doors, gates, TNT and pistons no longer pull
-   dust towards them.
+   sources (levers, buttons, torches whether lit or not, redstone blocks,
+   pressure plates, comparators, repeater fronts and backs, an observer's
+   output, targets, trapped chests, lecterns, daylight detectors). Lamps,
+   hoppers, droppers, dispensers, note blocks, doors, gates, TNT and
+   pistons no longer pull dust towards them.
 2. An unconnected dust is a cross, as in Java. Right-click it to make it
-   a dot; it stays a dot until something connects to it.
+   a dot; it stays a dot until something connects to it. Changing between
+   the two updates what the dust powers straight away.
 3. A comparator reading a container through a solid block outputs 15 when
    that block is powered at 15.
 4. A lamp lights in the tick it is powered.
@@ -243,19 +244,27 @@ the world). It does not need the loader, and the loader does not need it.
 For a study where builds must behave the same in both games, load it in
 every Luanti world participants build in.
 
-With the mod, a circuit built by hand in Mineclonia gets the same dust
-connections real Minecraft gives it. That is tested: every dust in every
-test circuit is shaped by Mineclonia itself and compared with what a real
-Minecraft server decided, including dust beside 18 kinds of block.
+With the mod, dust laid by hand in Mineclonia connects the way real
+Minecraft connects it, for the blocks this converter supports. That is
+tested: every dust in every test circuit is shaped by Mineclonia itself
+and compared with what a real Minecraft server decided for the same
+circuit, including dust beside 18 kinds of block and beside unlit torches.
+
+Not covered by the mod:
+
+- Java connects dust to detector rails, jukeboxes and lightning rods;
+  Mineclonia does not, with or without the mod.
+- A lever or button still takes effect at Mineclonia's next 0.1 s
+  redstone tick.
+- Dust already in a world keeps its shape until something next to it
+  changes. Add the mod before participants start building, not partway
+  through.
 
 The mod overrides Mineclonia's node definitions and wraps three of its
 internal functions when the game loads; it changes no Mineclonia files and
 refuses to load, with a message, on a Mineclonia version that lacks what
 it needs. It was written against release 35899. After a Mineclonia update,
 run the parity tests before relying on it.
-
-What it does not change: a lever or button still takes effect at
-Mineclonia's next 0.1 s redstone tick.
 
 ## Differences between Minecraft and Mineclonia
 

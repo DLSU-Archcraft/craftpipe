@@ -107,6 +107,10 @@ class Engine:
                 "wait": step.get("wait", 0),
                 "trace": step.get("trace", 0),
                 "poke": ([list(conv.to_luanti(p)) for p in step["poke"]] if step.get("poke") else None),
+                "remove": [list(conv.to_luanti(p)) for p in step.get("remove", [])] or None,
+                "rightclick": [list(conv.to_luanti(p)) for p in step.get("rightclick", [])] or None,
+                "setnode": [{"pos": list(conv.to_luanti(e["pos"])), "name": e["name"],
+                             "param2": e.get("param2", 0)} for e in step.get("setnode", [])] or None,
                 "read": [list(conv.to_luanti(circuit.outputs[k])) for k in step.get("read", [])],
             })
         result = self.run_raw(world, "circuit", conv.size, raw_steps, settle, native)

@@ -28,6 +28,9 @@ require_present("mcl_redstone._connect_with_wires", mcl_redstone._connect_with_w
 require_present("mcl_redstone._update_opaque_connections", mcl_redstone._update_opaque_connections)
 require_present("mcl_redstone.get_power", mcl_redstone.get_power)
 require_present("mcl_redstone.swap_node", mcl_redstone.swap_node)
+require_present("mcl_redstone.update_node", mcl_redstone.update_node)
+require_present("mcl_redstone._notify_observer_neighbours", mcl_redstone._notify_observer_neighbours)
+require_present("mcl_redstone._solid_opaque_tab", mcl_redstone._solid_opaque_tab)
 require_present("node " .. DOT, core.registered_nodes[DOT])
 require_present("node " .. CROSS, core.registered_nodes[CROSS])
 
@@ -46,8 +49,12 @@ local JAVA_CONNECTS = {
 	"^mcl_lever:", "^mcl_buttons:", "^mcl_redstone_torch:", "^mcl_pressureplates:",
 	"^mcl_comparators:", "^mcl_repeaters:", "^mcl_observers:", "^mcl_target:",
 	"^mcl_daylight_detector:", "^mcl_lectern:", "^mcl_chests:trapped_chest",
-	"^mcl_minecarts:detector_rail", "^mcl_lightning_rods:", "^mcl_tripwire",
-	"^mcl_jukebox:", "^mcl_sculk:.*sensor",
+}
+-- Java also connects dust to these, but Mineclonia (release 35899) does
+-- not: an unlit redstone torch is handled below; detector rails, jukeboxes
+-- and lightning rods are not handled (see the README).
+local UNLIT_TORCHES = {
+	"mcl_redstone_torch:redstone_torch_off", "mcl_redstone_torch:redstone_torch_off_wall",
 }
 
 local function java_connects(name)
@@ -73,6 +80,19 @@ core.register_on_mods_loaded(function()
 			removed[#removed + 1] = name
 		end
 	end
+	-- A torch is a signal source whether or not it is lit. Without this,
+	-- the shape of dust beside an inverter would depend on whether the
+	-- torch happened to be lit when the dust was last re-shaped.
+	for _, name in ipairs(UNLIT_TORCHES) do
+		local def = core.registered_nodes[name]
+		if def and def._mcl_redstone and not def._mcl_redstone.connects_to then
+			local copy = table.copy(def._mcl_redstone)
+			copy.connects_to = function()
+				return true
+			end
+			core.override_item(name, {_mcl_redstone = copy})
+		end
+	end
 	table.sort(removed)
 	core.log("action", "[craftpipe_java_rules] dust no longer connects to "
 		.. #removed .. " node types: " .. table.concat(removed, ", "))
@@ -86,11 +106,34 @@ end)
 -- unconnected dust into a dot. Every call to it goes through one of the
 -- functions wrapped below; after each, dots that nobody asked for are
 -- turned into crosses.
+local SIX = {
+	vector.new(1, 0, 0), vector.new(-1, 0, 0), vector.new(0, 1, 0), vector.new(0, -1, 0),
+	vector.new(0, 0, 1), vector.new(0, 0, -1),
+}
+
+-- A dust that changes between dot and cross changes what it powers, even
+-- though its own power stays the same. Mineclonia only re-evaluates a
+-- dust's neighbours when its power changes, so ask for it here: the
+-- neighbours, and whatever sits against a solid block the dust powers.
+local function refresh_neighbours(pos)
+	for _, d in ipairs(SIX) do
+		local pos2 = vector.add(pos, d)
+		mcl_redstone.update_node(pos2)
+		if mcl_redstone._solid_opaque_tab[core.get_node(pos2).name] then
+			for _, d2 in ipairs(SIX) do
+				mcl_redstone.update_node(vector.add(pos2, d2))
+			end
+		end
+	end
+	mcl_redstone._notify_observer_neighbours(pos)
+end
+
 local function fix(pos)
 	local node = core.get_node(pos)
 	if node.name == DOT then
 		if core.get_meta(pos):get_string(DOT_KEY) ~= "1" then
-			mcl_redstone.swap_node(pos, {name = CROSS, param2 = node.param2})
+			core.swap_node(pos, {name = CROSS, param2 = node.param2})
+			refresh_neighbours(pos)
 		end
 	elseif node.name ~= CROSS and is_wire(node.name) then
 		-- Connected again: like Java, it forgets it was ever a dot.
@@ -162,6 +205,7 @@ for name, def in pairs(core.registered_nodes) do
 					meta:set_string(DOT_KEY, "")
 				end
 				fix_around(pos, AROUND_WIRE)
+				refresh_neighbours(pos)
 				return result
 			end
 		end
@@ -242,6 +286,8 @@ do
 			-- Mineclonia would schedule this for the next tick. A lamp
 			-- powers nothing, so it is safe to light it right away.
 			mcl_redstone.swap_node(pos, {name = result.name, param2 = node.param2})
+			-- The scheduled update would have told observers; do the same.
+			mcl_redstone._notify_observer_neighbours(pos)
 			return nil
 		end
 		return result

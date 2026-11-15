@@ -207,3 +207,123 @@ def test_mod_loads_without_the_loader(tmp_path):
     assert "ModError" not in log
     assert "[craftpipe_java_rules] dust no longer connects to" in log
     assert "mcl_redstone_lamp:lamp_off" in log and "mcl_hoppers:hopper" in log
+
+
+# ---- found by review: things that must keep working with the mod -------------
+
+STONE = "minecraft:stone"
+
+
+def _observer_watching_lamp():
+    c = Circuit((4, 2, 1))
+    c.input("in", (0, 1, 0)).output("lamp", (1, 1, 0)).dust((3, 1, 0)).probe("pulse", (3, 1, 0))
+    return c
+
+
+def _observer_pulses(engine):
+    # The converter does not support observers, so one is placed directly:
+    # watching the lamp (to its west), output towards the dust.
+    out = engine.run(_observer_watching_lamp(), [
+        {"setnode": [{"pos": (2, 1, 0), "name": "mcl_observers:observer_off", "param2": 3}], "wait": 6,
+         "read": ["pulse"]},
+        {"set": {"in": True}, "trace": 10, "read": ["lamp", "pulse"]},
+    ])
+    trace = out[1]["trace"]
+    assert trace[-1]["lamp"]["on"] is True
+    return sum(1 for t in trace if t["pulse"]["param2"] & 15)
+
+
+def test_observer_still_sees_a_lamp_turn_on(module_engine, module_engine_java):
+    stock = _observer_pulses(module_engine)
+    assert stock > 0, "test set-up: the observer never fires even in stock Mineclonia"
+    assert _observer_pulses(module_engine_java) == stock
+
+
+def _lone_dust_on_powered_block():
+    """A dust kept at full power by the block under it (torch below), with
+    a lamp beside it."""
+    c = Circuit((3, 4, 3))
+    c.block(1, 1, 1, "minecraft:redstone_torch[lit=true]").block(1, 2, 1, STONE)
+    c.block(1, 3, 1, "minecraft:redstone_wire[east=side,north=side,power=15,south=side,west=side]")
+    c.output("lamp", (2, 3, 1)).probe("dust", (1, 3, 1))
+    return c
+
+
+def test_right_click_toggles_what_a_lone_dust_powers(module_engine_java):
+    out = module_engine_java.run(_lone_dust_on_powered_block(), [
+        {"wait": 4, "read": ["lamp", "dust"]},
+        {"rightclick": [(1, 3, 1)], "wait": 6, "read": ["lamp", "dust"]},
+        {"rightclick": [(1, 3, 1)], "wait": 6, "read": ["lamp", "dust"]},
+    ], native=True)
+    assert [s["dust"]["name"] for s in out] == [
+        "mcl_redstone:wire_0f", "mcl_redstone:redstone", "mcl_redstone:wire_0f"]
+    assert [s["lamp"]["on"] for s in out] == [True, False, True]
+
+
+def test_dust_that_becomes_a_cross_powers_its_new_neighbours(module_engine_java):
+    """Dust in a line with a lever; a lamp at right angles is not powered.
+    Remove the lever: the dust is unconnected, so it is a cross, and the
+    lamp must light (the block under the dust keeps it powered)."""
+    c = _lone_dust_on_powered_block()
+    c.block(0, 2, 1, STONE)
+    c.input("lever", (0, 3, 1))
+    c.block(1, 3, 1, "minecraft:redstone_wire[east=side,north=none,power=15,south=none,west=side]")
+    c.block(2, 3, 1, "minecraft:air")
+    c.output("lamp", (1, 3, 0))
+    out = module_engine_java.run(c, [
+        {"wait": 4, "read": ["lamp", "dust"]},
+        {"remove": [(0, 3, 1)], "wait": 6, "read": ["lamp", "dust"]},
+    ], native=True)
+    assert out[0]["dust"]["name"] == "mcl_redstone:wire_0a" and out[0]["lamp"]["on"] is False
+    assert out[1]["dust"]["name"] == "mcl_redstone:wire_0f" and out[1]["lamp"]["on"] is True
+
+
+def _dust_beside_unlit_torch():
+    """Torches held off by a lever on their block, with dust beside them:
+    once alone, once with a second dust at right angles."""
+    c = Circuit((9, 3, 4))
+    for x in (1, 5):
+        c.block(x, 1, 1, STONE)
+        c.block(x, 2, 1, "minecraft:lever[face=floor,facing=north,powered=true]")
+        c.block(x + 1, 1, 1, "minecraft:redstone_wall_torch[facing=east,lit=false]")
+        c.dust((x + 1, 1, 2)).probe(f"dust{x}", (x + 1, 1, 2))
+    c.dust((7, 1, 2)).probe("second", (7, 1, 2))
+    return c
+
+
+def _assert_native_shapes_match_minecraft(minecraft, engine, build):
+    circuit = build()
+    real = minecraft.dust_shapes(circuit)
+    names = sorted(circuit.outputs)
+    out = engine.run(build(), [{"read": names}], native=True)
+    wrong = {}
+    for name in names:
+        pos = circuit.outputs[name]
+        want = sum(MC_TO_LUANTI_BIT[side] for side in real[pos])
+        node = out[0][name]["name"]
+        got = int(node[-2:], 16) & 15 if node.startswith("mcl_redstone:wire_") else 0
+        if got != want:
+            wrong[name] = (sorted(real[pos]), f"{got:x}")
+    assert not wrong, wrong
+
+
+def test_dust_connects_to_an_unlit_torch(module_minecraft, module_engine_java):
+    _assert_native_shapes_match_minecraft(module_minecraft, module_engine_java, _dust_beside_unlit_torch)
+
+
+@pytest.mark.parametrize("name", SUITES + ["timing"])
+def test_saved_dust_shapes_are_what_real_minecraft_computes(module_minecraft, name):
+    """The shapes the test circuits are saved with come from a model of
+    Java's rule (circuits.java_dust_shapes). Real Minecraft must agree,
+    or the native-shape tests above compare against the wrong thing."""
+    suite = (suites.timing if name == "timing" else suites.ALL[name])()
+    from circuits import java_dust_shapes
+    java_dust_shapes(suite.circuit.grid)
+    real = module_minecraft.dust_shapes(suite.circuit)
+    wrong = []
+    for pos, sides in real.items():
+        state = suite.circuit.grid.get(*pos)
+        model = {s for s in ("north", "east", "south", "west") if state.get(s, "none") != "none"}
+        if model != sides:
+            wrong.append((pos, sorted(model), sorted(sides)))
+    assert not wrong, wrong[:8]
