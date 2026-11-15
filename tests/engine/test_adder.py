@@ -8,28 +8,8 @@ import pathlib
 import pytest
 
 from circuits import full_adder, ripple_adder
-
-OUTS = ["s0", "s1", "s2", "s3", "cout"]
-SETTLE = 120        # redstone ticks allowed per input change; see test_settle_time
-FAST = [(0, 0, 0), (15, 15, 1), (15, 1, 0), (1, 15, 0), (5, 10, 0), (10, 5, 1), (7, 8, 1),
-        (8, 8, 0), (3, 12, 1), (9, 6, 0), (0, 15, 1), (15, 0, 1), (1, 1, 0), (2, 2, 1),
-        (4, 4, 0), (6, 9, 1)]
-
-
-def steps_for(cases, wait=SETTLE):
-    steps = []
-    for a, b, cin in cases:
-        inputs = {"cin": bool(cin)}
-        for i in range(4):
-            inputs[f"a{i}"] = bool(a >> i & 1)
-            inputs[f"b{i}"] = bool(b >> i & 1)
-        steps.append({"set": inputs, "wait": wait, "read": OUTS})
-    return steps
-
-
-def value(reads):
-    return sum(reads[name]["on"] << i for i, name in enumerate(OUTS))
-
+from suites import ADDER_ALL, ADDER_FAST as FAST, ADDER_SETTLE as SETTLE
+from suites import adder_steps as steps_for, adder_value as value
 
 def test_full_adder(engine):
     c = full_adder()
@@ -50,7 +30,7 @@ def test_ripple_adder_fast(engine, fmt):
 
 @pytest.mark.slow
 def test_ripple_adder_all_512(engine):
-    cases = list(itertools.product(range(16), range(16), range(2)))
+    cases = ADDER_ALL
     out = engine.run(ripple_adder(4), steps_for(cases))
     wrong = [(c, value(r)) for c, r in zip(cases, out) if value(r) != sum(c)]
     assert not wrong, wrong[:10]
