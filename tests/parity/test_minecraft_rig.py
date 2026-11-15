@@ -2,6 +2,7 @@
 the way a player would?"""
 
 import os
+import pathlib
 import socket
 
 import pytest
@@ -113,3 +114,48 @@ def test_no_eula_marker_means_skip_and_no_eula_file(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="EULA"):
         mc.MinecraftServer(tmp_path / "srv").start()
     assert not list(tmp_path.rglob("eula.txt"))
+
+
+def test_server_dies_with_the_process_that_started_it(tmp_path):
+    """Killing the test runner (an IDE stop button, a cancelled CI job)
+    must not leave a Java server holding memory and ports."""
+    import signal
+    import subprocess
+    import sys
+    import time
+    mc.require_minecraft()
+    script = tmp_path / "holder.py"
+    script.write_text(
+        "import sys, time, pathlib\n"
+        f"sys.path.insert(0, {str(mc.REPO / 'tests')!r})\n"
+        "from harness import minecraft as mc\n"
+        f"s = mc.MinecraftServer(pathlib.Path({str(tmp_path / 'srv')!r})).start()\n"
+        "print(s.proc.pid, flush=True)\n"
+        "time.sleep(600)\n")
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        holder = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE, text=True)
+        java_pid = int(holder.stdout.readline())
+        holder.send_signal(sig)
+        holder.wait(timeout=30)
+        deadline = time.time() + 30
+        while time.time() < deadline and pathlib.Path(f"/proc/{java_pid}").exists():
+            time.sleep(0.2)
+        assert not pathlib.Path(f"/proc/{java_pid}").exists(), f"server survived {sig.name}"
+
+
+def test_stop_is_quick_when_the_console_never_came_up(tmp_path):
+    import time
+    mc.require_minecraft()
+    server = mc.MinecraftServer(tmp_path / "srv")
+    original = mc.Rcon
+    try:
+        def boom(*a, **k):
+            raise KeyboardInterrupt
+        mc.Rcon = boom
+        started = time.time()
+        with pytest.raises(KeyboardInterrupt):
+            server.start()
+    finally:
+        mc.Rcon = original
+    assert time.time() - started < 15
+    assert server.proc is None

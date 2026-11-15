@@ -40,7 +40,7 @@ def output_vocabulary() -> frozenset:
 _DUST = "minecraft:redstone_wire"
 _ALL_SIDES = (("east", "side"), ("north", "side"), ("south", "side"), ("west", "side"))
 # Dust connects to these in Mineclonia but not in Java ...
-_MINECLONIA_ONLY_CONNECTS = ("mcl_redstone_lamp:", "mcl_dispensers:")
+_MINECLONIA_ONLY_CONNECTS = ("mcl_redstone_lamp:", "mcl_dispensers:", "mcl_hoppers:")
 # ... and these re-run Mineclonia's dust-shape code on their neighbours
 # every time they are used.
 _RESHAPES_NEIGHBOURS = ("mcl_lever:", "mcl_buttons:")
@@ -124,7 +124,7 @@ def _warn_about_unstable_dust(dust_cells, size, names, node_ids, report: Report)
     """Dust keeps the shape Minecraft saved, except that using a lever or
     button makes Mineclonia re-shape the dust beside it by its own rules.
     That only changes behaviour when the same dust also touches a lamp,
-    dropper or dispenser it was not connected to."""
+    hopper, dropper or dispenser it was not connected to."""
     sx, sy, sz = size
     affected = []
     for (x, y, z), state in dust_cells:
@@ -142,9 +142,10 @@ def _warn_about_unstable_dust(dust_cells, size, names, node_ids, report: Report)
     if affected:
         where = ", ".join(str(p) for p in sorted(affected)[:MAX_POSITIONS])
         report.warn(
-            f"{len(affected)} redstone dust next to a lever or button also touch a lamp, dropper "
-            "or dispenser they are not connected to. In Mineclonia they will connect to it once "
-            f"the lever or button is used, and power it. Source positions: {where}"
+            f"{len(affected)} redstone dust next to a lever or button also touch a lamp, hopper, "
+            "dropper or dispenser they are not connected to. In Mineclonia they will connect to "
+            "it once the lever or button is used, and power it (lighting the lamp, locking the "
+            f"hopper). Source positions: {where}"
             + (" ..." if len(affected) > MAX_POSITIONS else ""))
 
 

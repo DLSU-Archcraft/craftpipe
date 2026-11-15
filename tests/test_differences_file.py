@@ -133,3 +133,21 @@ def test_readme_differences_section_is_in_sync():
     section = readme.split(start, 1)[1].split(end, 1)[0].strip()
     assert section == render_differences.render(differences.load()).strip(), \
         "run `python tools/render_differences.py`"
+
+
+def test_every_recorded_difference_is_exercised_by_a_parity_test():
+    """An entry that matches no test case could outlive its difference
+    unnoticed (a renamed tile, a mistyped step)."""
+    from parity import test_parity, test_timing
+    cases = [(name, output, step) for name in test_parity.FAST
+             for step, output in test_parity._cases(name)]
+    for tile, out, mode in test_timing.OUTPUTS:
+        name = f"{tile}.{out}"
+        cases += [("timing", name, s) for s in (0, 1, 2) if tile not in test_timing.FREE_RUNNING]
+        if mode:
+            cases += [("timing", name, f"trace{s}") for s in (1, 2)]
+    cases += [("timing", f"{tile}.ref", f"input{s}") for tile, s in test_timing.LATENCY_CASES]
+    unused = [e.id for e in differences.load() if not any(e.applies(*c) for c in cases)]
+    assert not unused
+    orphan = entry(id="orphan", suite="timing", output="no_such_tile.out")
+    assert not any(orphan.applies(*c) for c in cases)

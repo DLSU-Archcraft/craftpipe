@@ -24,7 +24,7 @@ def runs(module_minecraft, module_engine):
         if "trace" in step:
             entry["trace"] = [{k: luanti_reading(v) for k, v in tick.items()} for tick in step["trace"]]
         mineclonia.append(entry)
-    return {"minecraft": minecraft, "mineclonia": mineclonia, "inputs": suite.circuit.outputs}
+    return {"minecraft": minecraft, "mineclonia": mineclonia}
 
 
 def waveform(run, tile, out, mode, step):
@@ -39,13 +39,15 @@ def waveform(run, tile, out, mode, step):
 
 # Free-running circuits are sampled at an arbitrary phase, so only their
 # waveforms are compared.
-FREE_RUNNING = {"clock", "burnout"}
+FREE_RUNNING = {"clock"}
 
 
-def test_free_running_circuits_actually_run(runs):
+def test_clock_runs_and_torch_burns_out(runs):
     for game in ("minecraft", "mineclonia"):
         assert waveform(runs[game], "clock", "out", "period", 1) == {"half_periods": [5]}, game
-        assert waveform(runs[game], "burnout", "out", "count", 1)["changes"] == 0, game   # already burnt out
+        # The self-switching torch has burnt out by the first read and stays out.
+        assert [runs[game][s]["burnout.out"].on for s in (0, 1, 2)] == [False] * 3, game
+        assert waveform(runs[game], "burnout", "out", "count", 1)["changes"] == 0, game
 
 
 @pytest.mark.parametrize("tile,out,step", [(t, o, s) for t, o, _ in OUTPUTS for s in (0, 1, 2)
@@ -68,8 +70,10 @@ def _latency(run, ref, step):
     return found[0][0] if found else None
 
 
-@pytest.mark.parametrize("tile,step", [(t, s) for t, (_, outs) in TILES.items()
-                                       if "wave" in outs.values() for s in (1, 2)])
+LATENCY_CASES = [(t, s) for t, (_, outs) in TILES.items() if "wave" in outs.values() for s in (1, 2)]
+
+
+@pytest.mark.parametrize("tile,step", LATENCY_CASES)
 def test_input_latency(runs, tile, step):
     """How many ticks after a lever or button is used the dust beside it
     reacts. (Waveforms above are timed from that moment, so this is the

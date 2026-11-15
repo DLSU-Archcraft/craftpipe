@@ -95,6 +95,18 @@ def structure_nbt(grid: VoxelGrid) -> bytes:
     })
 
 
+def _die_with_parent() -> None:
+    """Run in the child before exec (Linux): have the kernel kill the
+    server if the process that started it dies for any reason, including
+    SIGTERM and SIGKILL, which atexit handlers never see."""
+    import ctypes
+    import signal
+    try:
+        ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGKILL)    # PR_SET_PDEATHSIG
+    except OSError:
+        pass
+
+
 def _free_tcp_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -175,6 +187,8 @@ class MinecraftServer:
         ready, message = fetch_tool.status()
         if not ready:
             raise RuntimeError(message)
+        if self.proc is not None:
+            raise RuntimeError("this server is already running")
         self.dir.mkdir(parents=True, exist_ok=True)
         self.rcon_port = _free_tcp_port()
         (self.dir / "eula.txt").write_text("eula=true\n")
@@ -191,7 +205,8 @@ class MinecraftServer:
         log = open(self.dir / "stdout.log", "wb")
         self.proc = subprocess.Popen(
             ["java", "-Xmx1G", "-jar", str(fetch_tool.jar_path()), "nogui"],
-            cwd=self.dir, stdout=log, stderr=subprocess.STDOUT)
+            cwd=self.dir, stdout=log, stderr=subprocess.STDOUT, preexec_fn=_die_with_parent)
+        log.close()
         atexit.register(self.stop)
         try:
             self.rcon = Rcon(self.rcon_port, "craftpipe", self.proc)
@@ -207,18 +222,28 @@ class MinecraftServer:
         proc, self.proc = self.proc, None
         if proc is None:
             return
-        if self.rcon is not None:
-            try:
-                self.rcon.cmd("stop")
-            except (OSError, RuntimeError):
-                pass
-            self.rcon.close()
-            self.rcon = None
         try:
-            proc.wait(timeout=30)
+            if self.rcon is not None:
+                try:
+                    self.rcon.cmd("stop")
+                except (OSError, RuntimeError):
+                    pass
+                self.rcon.close()
+                self.rcon = None
+                proc.wait(timeout=30)
+            else:
+                # The console never came up, so there is nothing to ask
+                # politely and nothing worth saving.
+                proc.terminate()
+                proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
+            pass
+        finally:
+            # Whatever happened above (including an interrupt), never
+            # leave a server behind.
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
 
     def __enter__(self) -> "MinecraftServer":
         return self.start()
@@ -285,7 +310,9 @@ class MinecraftServer:
         activation takes a varying number of ticks, so poll for it.
         """
         cx0, cz0, cx1, cz1 = x0 // 16 - 1, z0 // 16 - 1, x1 // 16 + 1, z1 // 16 + 1
-        self.cmd(f"forceload add {cx0 * 16} {cz0 * 16} {cx1 * 16} {cz1 * 16}")
+        reply = self.cmd(f"forceload add {cx0 * 16} {cz0 * 16} {cx1 * 16} {cz1 * 16}")
+        if "force loaded" not in reply:
+            raise RuntimeError(f"Minecraft would not load the area for a circuit: {reply}")
         pending = [(cx, cz) for cx in range(cx0, cx1 + 1) for cz in range(cz0, cz1 + 1)]
         deadline = time.time() + 120
         while pending:
@@ -365,6 +392,8 @@ class MinecraftServer:
             match = re.search(r"(-?\d+)\s*$", reply)
             power = int(match.group(1)) if match else 0
             return Reading(self._is(wpos, "minecraft:comparator[powered=true]"), power)
+        if block == "minecraft:hopper":
+            return Reading(self._is(wpos, "minecraft:hopper[enabled=false]"), None)
         for prop in ("lit", "powered"):
             if self._is(wpos, f"{block}[{prop}=true]"):
                 return Reading(True, None)

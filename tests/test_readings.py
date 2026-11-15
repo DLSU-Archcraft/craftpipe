@@ -20,3 +20,9 @@ def test_plain_components():
     assert luanti_reading(raw("mcl_lever:lever_off", 10)) == Reading(False, None)
     assert luanti_reading(raw("mcl_repeaters:repeater_on_locked", 6)) == Reading(True, None)
     assert luanti_reading(raw("mcl_redstone_torch:redstone_torch_off_wall", 3)) == Reading(False, None)
+
+
+def test_hopper_reads_as_on_when_locked():
+    assert luanti_reading(raw("mcl_hoppers:hopper_disabled")) == Reading(True, None)
+    assert luanti_reading(raw("mcl_hoppers:hopper_side_disabled", 2)) == Reading(True, None)
+    assert luanti_reading(raw("mcl_hoppers:hopper")) == Reading(False, None)

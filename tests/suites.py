@@ -543,6 +543,29 @@ def _dust_beside_lamp():
     return c
 
 
+def _dust_beside_hopper():
+    """As above with a hopper: powering a hopper locks it."""
+    c = Circuit((5, 2, 2))
+    c.input("in", (0, 1, 0)).dust_line(1, 1, 0, 3, 0).output("end", (4, 1, 0))
+    c.block(1, 1, 1, "minecraft:hopper[enabled=true,facing=down]").probe("beside", (1, 1, 1))
+    return c
+
+
+def _through_block_dust(n_dust):
+    """Chest (signal 3), solid block, comparator, with a line of dust
+    pointing into the block. One dust from the lever carries 15, two
+    carry 14."""
+    z = n_dust + 1
+    c = Circuit((4, 2, z + 1))
+    c.block(0, 1, z, "minecraft:chest[facing=north,type=single,waterlogged=false]")
+    c.grid.block_entities[(0, 1, z)] = {"id": "minecraft:chest",
+                                        "Items": stacks("minecraft:redstone", 247)}
+    c.input("in", (1, 1, 0)).dust_line(1, 1, 1, 1, n_dust).block(1, 1, z, STONE)
+    c.block(2, 1, z, "minecraft:comparator[facing=west,mode=compare,powered=false]")
+    c.dust((3, 1, z)).probe("out", (3, 1, z))
+    return c
+
+
 def _dust_on(block):
     """Dust carried over a transparent block; "under" touches only that block."""
     c = Circuit((5, 3, 2))
@@ -589,7 +612,10 @@ TIMING_TILES = {
     "clock": (_clock, {"out": "period"}),
     "burnout": (_burnout, {"out": "count"}),
     "through_block": (_through_block, {"out": None}),
+    "through_block_dust15": (lambda: _through_block_dust(1), {"out": None}),
+    "container_behind_block_dust14": (lambda: _through_block_dust(2), {"out": None}),
     "dust_beside_lamp": (_dust_beside_lamp, {"end": None, "beside": None}),
+    "dust_beside_hopper": (_dust_beside_hopper, {"end": None, "beside": None}),
     "dust_on_glass": (lambda: _dust_on("minecraft:glass"), {"end": None, "under": None}),
     "dust_on_glowstone": (lambda: _dust_on("minecraft:glowstone"), {"end": None, "under": None}),
     "weak_power": (_weak_power, {"after": None, "lamp": None}),

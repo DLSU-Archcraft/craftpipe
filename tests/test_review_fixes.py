@@ -206,3 +206,12 @@ def test_convert_warns_about_names_the_loader_refuses(tmp_path, name, warns):
     schem.write_schem(g, tmp_path / f"{name}.schem")
     conv = craftpipe.convert(tmp_path / f"{name}.schem")
     assert any("craftpipe_place" in w for w in conv.report.warnings) is warns
+
+
+def test_warns_when_a_lever_can_reshape_dust_onto_a_hopper():
+    g = VoxelGrid((2, 1, 2))
+    g.set(0, 0, 0, P("lever[face=floor,facing=north,powered=false]"))
+    g.set(1, 0, 0, P("redstone_wire[east=side,north=none,south=none,west=side]"))
+    g.set(1, 0, 1, P("hopper[enabled=true,facing=down]"))
+    (warning,) = mapper.map_grid(g).report.warnings
+    assert "hopper" in warning and "(1, 0, 0)" in warning
