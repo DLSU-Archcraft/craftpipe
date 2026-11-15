@@ -9,7 +9,7 @@ from parity.differences import Difference, check
 def entry(**kw):
     base = dict(id="x", suite="logic", output="tile.lamp", step=1,
                 minecraft={"on": False}, mineclonia={"on": True}, established="measured",
-                title="t", explanation="e")
+                title="t", explanation="e", with_java_rules="remains")
     base.update(kw)
     return Difference(**base)
 
@@ -151,3 +151,24 @@ def test_every_recorded_difference_is_exercised_by_a_parity_test():
     assert not unused
     orphan = entry(id="orphan", suite="timing", output="no_such_tile.out")
     assert not any(orphan.applies(*c) for c in cases)
+
+
+# ---- with the Java-rules mod -------------------------------------------------
+
+def test_entries_say_what_the_mod_does_to_them():
+    for e in differences.load():
+        assert e.with_java_rules in ("fixed", "remains"), e.id
+
+
+def test_fixed_entry_must_be_gone_in_java_mode():
+    e = entry(with_java_rules="fixed")
+    check("logic", "tile.lamp", 1, Reading(True, None), Reading(True, None), entries=[e], mode="java")
+    with pytest.raises(AssertionError):
+        check("logic", "tile.lamp", 1, Reading(False, None), Reading(True, None), entries=[e], mode="java")
+
+
+def test_remaining_entry_must_still_occur_in_java_mode():
+    e = entry(with_java_rules="remains")
+    check("logic", "tile.lamp", 1, Reading(False, None), Reading(True, None), entries=[e], mode="java")
+    with pytest.raises(AssertionError, match="no longer"):
+        check("logic", "tile.lamp", 1, Reading(True, None), Reading(True, None), entries=[e], mode="java")

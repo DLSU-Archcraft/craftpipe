@@ -19,6 +19,13 @@ def module_engine(tmp_path_factory):
     return Engine(tmp_path_factory.mktemp("engine"))
 
 
+@pytest.fixture(scope="module")
+def module_engine_java(tmp_path_factory):
+    """Mineclonia with the craftpipe_java_rules mod loaded."""
+    require_luanti()
+    return Engine(tmp_path_factory.mktemp("engine_java"), mods=("craftpipe_java_rules",))
+
+
 @pytest.fixture
 def minecraft(tmp_path):
     """A real headless Minecraft server (unmodified), stopped after the test."""

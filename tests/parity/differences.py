@@ -28,6 +28,7 @@ class Difference:
     established: str       # "measured" or "documented" (Minecraft side taken from documentation)
     title: str
     explanation: str
+    with_java_rules: str = "remains"   # "fixed": gone when craftpipe_java_rules is loaded
 
     def applies(self, suite: str, output: str, step) -> bool:
         return (self.suite == suite and fnmatch.fnmatchcase(output, self.output)
@@ -44,9 +45,15 @@ def _observation(value) -> dict:
     return dict(value)
 
 
-def check(suite: str, output: str, step, minecraft, mineclonia, entries=None) -> None:
-    """Assert that the two observations agree, or differ exactly as recorded."""
+def check(suite: str, output: str, step, minecraft, mineclonia, entries=None,
+          mode: str = "stock") -> None:
+    """Assert that the two observations agree, or differ exactly as recorded.
+
+    ``mode="java"`` is Mineclonia with the craftpipe_java_rules mod: the
+    differences that mod fixes must then be gone."""
     entries = load() if entries is None else entries
+    if mode == "java":
+        entries = [e for e in entries if e.with_java_rules != "fixed"]
     mc, mcl = _observation(minecraft), _observation(mineclonia)
     where = f"{suite} / {output} / step {step}"
     matching = [e for e in entries if e.applies(suite, output, step)]

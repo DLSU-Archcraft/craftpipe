@@ -47,6 +47,21 @@ local function run(job)
 	if not ok then
 		return
 	end
+	if job.native then
+		-- Let the game shape every dust by its own rules, as if the
+		-- circuit had been built by hand here.
+		for z = 0, job.size[3] - 1 do
+			for y = 0, job.size[2] - 1 do
+				for x = 0, job.size[1] - 1 do
+					local pos = at({x, y, z})
+					local node = core.get_node(pos)
+					if core.get_item_group(node.name, "redstone_wire") ~= 0 then
+						core.registered_nodes[node.name].on_construct(pos)
+					end
+				end
+			end
+		end
+	end
 	tick(job.settle or 20)
 
 	for _, step in ipairs(job.steps or {}) do
@@ -73,6 +88,12 @@ local function run(job)
 			local ok2, res2 = craftpipe.place(origin, job.name)
 			result.second_place_ok = ok2
 			result.second_place_message = ok2 and res2.message or res2
+		end
+		-- "poke": place and remove a solid block at each position, which
+		-- makes the game re-shape the dust around it.
+		for _, rel in ipairs(step.poke or {}) do
+			core.set_node(at(rel), {name = "mcl_core:stone"})
+			core.remove_node(at(rel))
 		end
 		local function read_all()
 			local reads = {}

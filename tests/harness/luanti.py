@@ -29,9 +29,10 @@ def _free_port() -> int:
 
 
 class Engine:
-    def __init__(self, tmp_path: pathlib.Path):
+    def __init__(self, tmp_path: pathlib.Path, mods=()):
         self.tmp = tmp_path
         self.runs = 0
+        self.mods = tuple(mods)     # extra mods from this repo's mod/ folder
 
     def _world(self) -> pathlib.Path:
         self.runs += 1
@@ -41,6 +42,8 @@ class Engine:
         (world / "craftpipe_test").mkdir()
         shutil.copytree(REPO / "mod/craftpipe_loader", world / "worldmods/craftpipe_loader")
         shutil.copytree(REPO / "tests/engine/craftpipe_test", world / "worldmods/craftpipe_test")
+        for name in self.mods:
+            shutil.copytree(REPO / "mod" / name, world / "worldmods" / name)
         (world / "world.mt").write_text(
             "gameid = mineclonia\nworld_name = craftpipe_test\nbackend = sqlite3\n"
             "player_backend = sqlite3\nauth_backend = sqlite3\nmod_storage_backend = sqlite3\n")
@@ -50,10 +53,12 @@ class Engine:
             "secure.enable_security = true\n")
         return world
 
-    def run_raw(self, world: pathlib.Path, name: str, size, steps, settle: int = 20) -> dict:
+    def run_raw(self, world: pathlib.Path, name: str, size, steps, settle: int = 20,
+                native: bool = False) -> dict:
         """Run a job against files already in <world>/schems/. Positions in
         ``steps`` are schematic-relative Luanti coordinates."""
-        job = {"name": name, "origin": ORIGIN, "size": list(size), "steps": steps, "settle": settle}
+        job = {"name": name, "origin": ORIGIN, "size": list(size), "steps": steps, "settle": settle,
+               "native": native}
         (world / "craftpipe_test/job.json").write_text(json.dumps(job))
         log = world / "server.log"
         with open(log, "wb") as out:
@@ -85,9 +90,14 @@ class Engine:
         conv = craftpipe.convert(src, world / "schems" / f"{name}.mts", **convert_kw)
         return world, conv
 
-    def run(self, circuit, steps, fmt: str = "schem", settle: int = 20) -> list[dict]:
+    def run(self, circuit, steps, fmt: str = "schem", settle: int = 20,
+            native: bool = False) -> list[dict]:
         """steps: [{"set": {input: bool}, "wait": ticks, "read": [output, ...]}]
-        Returns one {output: {"name", "param2", "on"}} dict per step."""
+        Returns one {output: {"name", "param2", "on"}} dict per step.
+
+        ``native=True``: after loading, every dust is re-shaped by the
+        game's own rules instead of keeping the shape Minecraft saved, as
+        if the circuit had been built by hand in Mineclonia."""
         world, conv = self.prepare(circuit, fmt)
         raw_steps = []
         for step in steps:
@@ -96,9 +106,10 @@ class Engine:
                         for k, v in step.get("set", {}).items()],
                 "wait": step.get("wait", 0),
                 "trace": step.get("trace", 0),
+                "poke": ([list(conv.to_luanti(p)) for p in step["poke"]] if step.get("poke") else None),
                 "read": [list(conv.to_luanti(circuit.outputs[k])) for k in step.get("read", [])],
             })
-        result = self.run_raw(world, "circuit", conv.size, raw_steps, settle)
+        result = self.run_raw(world, "circuit", conv.size, raw_steps, settle, native)
         assert result["place_ok"], result["place_message"]
         out = []
         traces = result.get("traces") or []

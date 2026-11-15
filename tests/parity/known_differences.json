@@ -12,7 +12,8 @@
   },
   "established": "measured",
   "title": "A lever or button takes effect at the next 0.1 s redstone tick (Minecraft: the next 0.05 s game tick)",
-  "explanation": "In Minecraft a lever or button acts within one game tick (0.05 s) of being used. In Mineclonia it acts at the next redstone tick (0.1 s), so a person's input can land up to 0.1 s later. The tests see this as 0 versus 1 tick because they step a frozen world; in live play the gap is a small fraction of a second and varies. Everything downstream then runs with the same delays in both games, so this shifts when a circuit starts reacting to a person, not what it computes."
+  "explanation": "In Minecraft a lever or button acts within one game tick (0.05 s) of being used. In Mineclonia it acts at the next redstone tick (0.1 s), so a person's input can land up to 0.1 s later. The tests see this as 0 versus 1 tick because they step a frozen world; in live play the gap is a small fraction of a second and varies. Everything downstream then runs with the same delays in both games, so this shifts when a circuit starts reacting to a person, not what it computes.",
+  "with_java_rules": "remains"
  },
  {
   "id": "lamp-on-delay",
@@ -31,7 +32,8 @@
   },
   "established": "measured",
   "title": "Redstone lamps light one tick later",
-  "explanation": "A lamp lights in the same tick it is powered in Minecraft, and one redstone tick later in Mineclonia. Both games turn a lamp off two ticks after it loses power. Lamps are outputs only, so this affects what a display looks like for a tenth of a second, not any signal."
+  "explanation": "A lamp lights in the same tick it is powered in Minecraft, and one redstone tick later in Mineclonia. Both games turn a lamp off two ticks after it loses power. Lamps are outputs only, so this affects what a display looks like for a tenth of a second, not any signal.",
+  "with_java_rules": "fixed"
  },
  {
   "id": "comparator-through-powered-block",
@@ -46,7 +48,8 @@
   },
   "established": "measured",
   "title": "Comparator reading a container through a solid block that is powered at full strength",
-  "explanation": "A comparator can read a container through one solid block. If that block is itself powered at full strength (15), whether by a lever on it, a repeater, or dust carrying 15 that points into it, Minecraft Java outputs 15 and ignores the container; Mineclonia keeps outputting the container's level. With the block unpowered, or powered by dust carrying 14 or less, both games output the container's level. Avoid powering the block between a container and its comparator."
+  "explanation": "A comparator can read a container through one solid block. If that block is itself powered at full strength (15), whether by a lever on it, a repeater, or dust carrying 15 that points into it, Minecraft Java outputs 15 and ignores the container; Mineclonia keeps outputting the container's level. With the block unpowered, or powered by dust carrying 14 or less, both games output the container's level. Avoid powering the block between a container and its comparator.",
+  "with_java_rules": "fixed"
  },
  {
   "id": "dust-reshaped-beside-component",
@@ -61,6 +64,7 @@
   },
   "established": "measured",
   "title": "Dust next to a lever or button can start powering a lamp or hopper beside it",
-  "explanation": "Mineclonia connects redstone dust to lamps and hoppers (and, from its source, to droppers, dispensers and note blocks); Minecraft Java does not. craftpipe places dust with the connections Minecraft saved, so a wire running past a lamp or hopper leaves it alone. But using a lever or button makes Mineclonia re-shape the dust directly beside that lever or button by its own rules: if that dust also touches such a block it was not pointing at, it connects to it and powers it. A lamp lights; a hopper locks and stops moving items, which changes what an item-based circuit does. The same re-shaping happens if someone edits the build in Mineclonia by placing or removing dust, a redstone component or a solid block next to dust. The converter warns, with positions, when a build contains the lever or button arrangement. Keep one block of dust between a lever or button and anything the wire should pass without powering."
+  "explanation": "Mineclonia connects redstone dust to lamps and hoppers (and, from its source, to droppers, dispensers and note blocks); Minecraft Java does not. craftpipe places dust with the connections Minecraft saved, so a wire running past a lamp or hopper leaves it alone. But using a lever or button makes Mineclonia re-shape the dust directly beside that lever or button by its own rules: if that dust also touches such a block it was not pointing at, it connects to it and powers it. A lamp lights; a hopper locks and stops moving items, which changes what an item-based circuit does. The same re-shaping happens if someone edits the build in Mineclonia by placing or removing dust, a redstone component or a solid block next to dust. The converter warns, with positions, when a build contains the lever or button arrangement. Keep one block of dust between a lever or button and anything the wire should pass without powering.",
+  "with_java_rules": "fixed"
  }
 ]
