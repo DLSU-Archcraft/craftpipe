@@ -15,7 +15,7 @@ local function read_json(path)
 	return core.parse_json(text)
 end
 
-local result = {steps = {}, traces = {}}
+local result = {steps = {}, traces = {}, exports = {}}
 
 local function finish(err)
 	result.error = err
@@ -94,6 +94,16 @@ local function run(job)
 		for _, rel in ipairs(step.poke or {}) do
 			core.set_node(at(rel), {name = "mcl_core:stone"})
 			core.remove_node(at(rel))
+		end
+		if step.export then
+			-- Export the placed build (or an explicit region) with the loader.
+			local p1 = step.export.region and vector.new(unpack(step.export.region[1])) or origin
+			local p2 = step.export.region and vector.new(unpack(step.export.region[2]))
+				or vector.new(origin.x + job.size[1] - 1, origin.y + job.size[2] - 1,
+					origin.z + job.size[3] - 1)
+			local ok, res = craftpipe.export(p1, p2, step.export.name)
+			table.insert(result.exports, {ok = ok, message = ok and res.message or res,
+				containers = ok and res.containers or nil})
 		end
 		-- Direct world edits, for behaviours a converted build cannot contain.
 		for _, edit in ipairs(step.setnode or {}) do

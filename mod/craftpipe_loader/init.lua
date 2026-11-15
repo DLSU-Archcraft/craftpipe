@@ -398,6 +398,162 @@ function craftpipe.place_async(pos, name, callback)
 	end)
 end
 
+------------------------------------------------------------------------
+-- Export: save a region so `craftpipe to-minecraft` can convert it back
+------------------------------------------------------------------------
+
+local EXPORT_MAX_VOLUME = 4000000
+local EXPORT_LISTS = {"main", "src", "fuel", "dst"}
+
+-- Container contents and lectern pages inside a region, as manifest entries.
+local function collect_contents(p1, p2)
+	local containers, meta_entries = {}, {}
+	local vm = core.get_voxel_manip(p1, p2)
+	local emin, emax = vm:get_emerged_area()
+	local area = VoxelArea(emin, emax)
+	local data = vm:get_data()
+	local kind = {}     -- content id -> "container" / "lectern" / false
+	for z = p1.z, p2.z do
+		for y = p1.y, p2.y do
+			local i = area:index(p1.x, y, z)
+			for x = p1.x, p2.x do
+				local id = data[i]
+				local k = kind[id]
+				if k == nil then
+					local name = core.get_name_from_content_id(id)
+					if core.get_item_group(name, "container") ~= 0 then
+						k = "container"
+					elseif name == LECTERN then
+						k = "lectern"
+					else
+						k = false
+					end
+					kind[id] = k
+				end
+				if k then
+					local pos = vector.new(x, y, z)
+					local rel = {x - p1.x, y - p1.y, z - p1.z}
+					local node_meta = core.get_meta(pos)
+					if k == "container" then
+						local inv = node_meta:get_inventory()
+						local lists = {}
+						for _, listname in ipairs(EXPORT_LISTS) do
+							local stacks = {}
+							for slot = 1, inv:get_size(listname) do
+								local stack = inv:get_stack(listname, slot)
+								if not stack:is_empty() then
+									stacks[#stacks + 1] = {slot = slot, name = stack:get_name(),
+										count = stack:get_count(), max = stack:get_stack_max()}
+								end
+							end
+							if #stacks > 0 then
+								lists[listname] = stacks
+							end
+						end
+						containers[#containers + 1] = {pos = rel, node = core.get_node(pos).name,
+							lists = lists}
+					else
+						meta_entries[#meta_entries + 1] = {pos = rel, fields = {
+							pages = node_meta:get_string("pages"), page = node_meta:get_string("page")}}
+					end
+				end
+				i = i + 1
+			end
+		end
+	end
+	return containers, meta_entries
+end
+
+--- Save the region between two positions as <world>/schems/<name>.mts
+-- plus <name>.craftpipe.json (container contents, lectern pages).
+-- Returns true and {size, containers, message}, or false and a message.
+function craftpipe.export(pos1, pos2, name)
+	if not valid_name(name) then
+		return false, "invalid schematic name (use letters, digits, _ and - only)"
+	end
+	local p1, p2 = vector.sort(vector.round(pos1), vector.round(pos2))
+	local size = vector.add(vector.subtract(p2, p1), 1)
+	if size.x * size.y * size.z > EXPORT_MAX_VOLUME then
+		return false, string.format("region is too large to export (%dx%dx%d; the limit is %d blocks)",
+			size.x, size.y, size.z, EXPORT_MAX_VOLUME)
+	end
+	core.load_area(p1, p2)
+	core.mkdir(schems_dir())
+	local path = schems_dir() .. name .. ".mts"
+	if not core.create_schematic(p1, p2, nil, path) then
+		return false, "the engine could not save the region"
+	end
+	local data = read_file(path)
+	if not data then
+		return false, "the saved schematic could not be read back"
+	end
+	local containers, meta_entries = collect_contents(p1, p2)
+	local manifest = {
+		format = MANIFEST_FORMAT, kind = "export", source = "Mineclonia world",
+		size = {size.x, size.y, size.z}, mts_sha1 = core.sha1(data),
+		complete = true, containers = containers, meta = meta_entries,
+	}
+	if not core.safe_file_write(schems_dir() .. name .. ".craftpipe.json", core.write_json(manifest)) then
+		return false, "the manifest could not be written"
+	end
+	return true, {size = size, containers = #containers,
+		message = string.format("exported %s: %dx%dx%d, %d container(s). Files are in the world's "
+			.. "schems folder; convert with `craftpipe to-minecraft %s.mts`.",
+			name, size.x, size.y, size.z, #containers, name)}
+end
+
+local export_corners = {}       -- player name -> {pos1, pos2}
+
+local function set_corner(player_name, index)
+	local player = core.get_player_by_name(player_name)
+	if not player then
+		return false, "this command needs a player position"
+	end
+	export_corners[player_name] = export_corners[player_name] or {}
+	local pos = vector.round(player:get_pos())
+	export_corners[player_name][index] = pos
+	return true, "craftpipe: corner " .. index .. " set to " .. core.pos_to_string(pos)
+end
+
+core.register_chatcommand("craftpipe_pos1", {
+	description = "Set the first corner of the region to export to your position",
+	privs = {server = true},
+	func = function(player_name)
+		return set_corner(player_name, 1)
+	end,
+})
+
+core.register_chatcommand("craftpipe_pos2", {
+	description = "Set the second corner of the region to export to your position",
+	privs = {server = true},
+	func = function(player_name)
+		return set_corner(player_name, 2)
+	end,
+})
+
+core.register_chatcommand("craftpipe_export", {
+	params = "<name>",
+	description = "Save the region between /craftpipe_pos1 and /craftpipe_pos2 (or the WorldEdit "
+		.. "selection) for conversion to Minecraft",
+	privs = {server = true},
+	func = function(player_name, param)
+		local corners = export_corners[player_name] or {}
+		local pos1, pos2 = corners[1], corners[2]
+		if not (pos1 and pos2) and rawget(_G, "worldedit") and worldedit.pos1 and worldedit.pos2 then
+			pos1, pos2 = worldedit.pos1[player_name], worldedit.pos2[player_name]
+		end
+		if not (pos1 and pos2) then
+			return false, "craftpipe: set both corners first with /craftpipe_pos1 and /craftpipe_pos2"
+		end
+		local ok, result = craftpipe.export(pos1, pos2, param:match("^%s*(.-)%s*$"))
+		return ok, "craftpipe: " .. (ok and result.message or result)
+	end,
+})
+
+core.register_on_leaveplayer(function(player)
+	export_corners[player:get_player_name()] = nil
+end)
+
 core.register_chatcommand("craftpipe_place", {
 	params = "<name>",
 	description = "Place a craftpipe-converted schematic from the world's schems folder at your position",

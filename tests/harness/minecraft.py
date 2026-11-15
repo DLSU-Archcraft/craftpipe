@@ -285,7 +285,8 @@ class MinecraftServer:
 
     def _place(self, circuit) -> _Placed:
         from circuits import java_dust_shapes
-        java_dust_shapes(circuit.grid)
+        if not getattr(circuit, "shaped", False):
+            java_dust_shapes(circuit.grid)
         self._count += 1
         name = f"circuit{self._count}"
         target = self.dir / "world/generated/minecraft/structures"

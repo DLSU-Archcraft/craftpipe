@@ -95,6 +95,16 @@ class Circuit:
         sx, _, sz = size
         self.fill(0, 0, 0, sx - 1, 0, sz - 1, FLOOR)
 
+    @classmethod
+    def from_grid(cls, grid: VoxelGrid, inputs: dict, outputs: dict) -> "Circuit":
+        """Wrap a build read from a file. Its dust already has the shapes
+        it was saved with, so they are left alone."""
+        circuit = cls.__new__(cls)
+        circuit.grid = grid
+        circuit.inputs, circuit.outputs = dict(inputs), dict(outputs)
+        circuit.shaped = True
+        return circuit
+
     @property
     def size(self):
         return self.grid.size
@@ -150,7 +160,8 @@ class Circuit:
         return self
 
     def save(self, path) -> None:
-        java_dust_shapes(self.grid)
+        if not getattr(self, "shaped", False):
+            java_dust_shapes(self.grid)
         if os.fspath(path).endswith(".litematic"):
             litematic.write_litematic(self.grid, path)
         else:
