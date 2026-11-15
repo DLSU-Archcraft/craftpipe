@@ -49,5 +49,26 @@ def convert(input_path, output_path=None, *, allow_unmapped: bool = False):
     return conv
 
 
-__all__ = ["convert", "output_paths", "BlockState", "VoxelGrid", "CraftpipeError",
+def to_minecraft(mts_path, output_path=None, *, allow_unmapped: bool = False):
+    """Convert a Mineclonia .mts (with the manifest beside it, if any) to a
+    Minecraft 1.21.1 schematic: .litematic by default, .schem if the output
+    path ends in .schem. Returns the Report. Raises UnmappedBlocksError
+    (nothing written) when a node has no Minecraft equivalent."""
+    from . import litematic, reverse, schem
+
+    size, names, node_ids, param2, manifest = reverse.read_export(mts_path)
+    grid, report = reverse.to_grid(size, names, node_ids, param2, manifest,
+                                   allow_unmapped=allow_unmapped)
+    if output_path is None:
+        output_path = os.path.splitext(os.fspath(mts_path))[0] + ".litematic"
+    output_path = os.fspath(output_path)
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    if output_path.endswith(".schem"):
+        schem.write_schem(grid, output_path, data_version=reverse.DATA_VERSION)
+    else:
+        litematic.write_litematic(grid, output_path, data_version=reverse.DATA_VERSION)
+    return report
+
+
+__all__ = ["convert", "to_minecraft", "output_paths", "BlockState", "VoxelGrid", "CraftpipeError",
            "UnmappedBlocksError", "UnsupportedFormatError", "__version__"]

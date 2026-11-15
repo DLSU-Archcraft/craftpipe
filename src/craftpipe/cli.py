@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
-from . import convert, mapper, output_paths
+from . import convert, mapper, output_paths, to_minecraft
 from .errors import CraftpipeError, UnmappedBlocksError
 from .reader import read_schematic
 
 EXIT_OK, EXIT_UNMAPPED, EXIT_ERROR = 0, 1, 2
 
 
-def _print_unmapped(report: mapper.Report, out) -> None:
+def _print_unmapped(report: mapper.Report, out, target: str = "Mineclonia") -> None:
     total = sum(e.count for e in report.unmapped.values())
-    print(f"{total} block(s) in {len(report.unmapped)} state(s) have no Mineclonia mapping:", file=out)
+    print(f"{total} block(s) in {len(report.unmapped)} state(s) have no {target} mapping:", file=out)
     for state, entry in sorted(report.unmapped.items(), key=lambda kv: -kv[1].count):
         where = ", ".join(f"({x},{y},{z})" for x, y, z in entry.positions)
         more = " ..." if entry.count > len(entry.positions) else ""
@@ -83,6 +84,26 @@ def cmd_inspect(args) -> int:
     return EXIT_OK
 
 
+def cmd_to_minecraft(args) -> int:
+    output = args.output or os.path.splitext(args.input)[0] + ".litematic"
+    try:
+        report = to_minecraft(args.input, output, allow_unmapped=args.allow_unmapped)
+    except UnmappedBlocksError as exc:
+        _write_report(args.report, exc.report)
+        _print_unmapped(exc.report, sys.stderr, "Minecraft")
+        print("Nothing was written. These Mineclonia nodes are not supported; pass "
+              "--allow-unmapped to convert anyway with bedrock in their place.", file=sys.stderr)
+        return EXIT_UNMAPPED
+    _write_report(args.report, report)
+    print(f"{output}: {sum(report.counts.values())} blocks, Minecraft Java 1.21.1")
+    _print_warnings(report, sys.stderr)
+    if report.unmapped:
+        _print_unmapped(report, sys.stderr, "Minecraft")
+        print("WARNING: unsupported nodes were replaced with bedrock; the circuit may behave "
+              "differently from the original.", file=sys.stderr)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="craftpipe",
@@ -98,6 +119,14 @@ def build_parser() -> argparse.ArgumentParser:
     insp = sub.add_parser("inspect", help="show size, block counts and what would be unmapped")
     insp.add_argument("input")
     insp.set_defaults(func=cmd_inspect)
+    back = sub.add_parser("to-minecraft",
+                          help="convert a Mineclonia .mts (exported with /craftpipe_export) to Minecraft")
+    back.add_argument("input")
+    back.add_argument("-o", "--output", help="output .litematic or .schem (default: .litematic next to the input)")
+    back.add_argument("--allow-unmapped", action="store_true",
+                      help="replace unsupported nodes with bedrock instead of failing")
+    back.add_argument("--report", metavar="FILE.json", help="write the conversion report as JSON")
+    back.set_defaults(func=cmd_to_minecraft)
     return parser
 
 

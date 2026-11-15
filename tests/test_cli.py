@@ -102,3 +102,21 @@ def test_library_convert(tmp_path):
     conv = craftpipe.convert(src)
     assert (tmp_path / "build.mts").exists()
     assert conv.report.counts == {"mcl_core:stone": 1}
+
+
+def test_to_minecraft_cli(tmp_path):
+    src = make(tmp_path, "stone", "white_wool")
+    assert run("convert", src).returncode == 0
+    r = run("to-minecraft", tmp_path / "build.mts", "-o", tmp_path / "back.schem")
+    assert r.returncode == 0, r.stderr
+    assert "back.schem" in r.stdout and (tmp_path / "back.schem").exists()
+
+
+def test_to_minecraft_cli_unmapped_and_garbage(tmp_path):
+    mts.write_mts(tmp_path / "x.mts", (1, 1, 1), ["air", "mcl_core:lava_source"], [1], [0])
+    r = run("to-minecraft", tmp_path / "x.mts")
+    assert r.returncode == 1 and "mcl_core:lava_source" in r.stderr
+    assert not (tmp_path / "x.litematic").exists()
+    (tmp_path / "junk.mts").write_bytes(b"not a schematic")
+    r = run("to-minecraft", tmp_path / "junk.mts")
+    assert r.returncode == 2 and "Traceback" not in r.stderr
