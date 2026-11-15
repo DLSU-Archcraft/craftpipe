@@ -62,3 +62,42 @@ def check(suite: str, output: str, step, minecraft, mineclonia, entries=None) ->
                               f"{got}, entry expects {want}")
     other = {k for k in mc if k not in entry.minecraft and mc[k] != mcl.get(k)}
     assert not other, f"{where}: the games also differ in {sorted(other)}, which '{entry.id}' does not record"
+
+
+# ---- traces ----------------------------------------------------------------
+
+def changes(trace, name: str, before) -> list[tuple[int, object]]:
+    """(tick, new reading) for every tick at which output ``name`` changed.
+    Tick 0 is the moment the inputs were set, before any tick ran;
+    ``before`` is the reading just before they were set."""
+    out, last = [], before
+    for tick, readings in enumerate(trace):
+        now = readings[name]
+        if now != last:
+            out.append((tick, now))
+            last = now
+    return out
+
+
+def summarise(mode: str, output_changes, ref_first) -> dict:
+    """A waveform reduced to what the two games are expected to share.
+
+    wave    every change, timed from the tick the reference probe beside
+            the input first reacted (so delays are compared, not how soon
+            each game notices the input)
+    period  the distinct gaps between changes: for free-running clocks,
+            whose phase at the start of a trace is arbitrary
+    count   how many times it changed and where it ended: for circuits
+            that stop by themselves (torch burn-out)
+    """
+    ticks = [t for t, _ in output_changes]
+    if mode == "wave":
+        base = ref_first or 0
+        return {"changes_at": [t - base for t in ticks],
+                "values": [list(v) for _, v in output_changes]}
+    if mode == "period":
+        return {"half_periods": sorted({b - a for a, b in zip(ticks, ticks[1:])})}
+    if mode == "count":
+        final = output_changes[-1][1].on if output_changes else None
+        return {"changes": len(ticks), "final_on": final}
+    raise ValueError(mode)

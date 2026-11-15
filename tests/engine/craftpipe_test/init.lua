@@ -15,7 +15,7 @@ local function read_json(path)
 	return core.parse_json(text)
 end
 
-local result = {steps = {}}
+local result = {steps = {}, traces = {}}
 
 local function finish(err)
 	result.error = err
@@ -74,6 +74,25 @@ local function run(job)
 			result.second_place_ok = ok2
 			result.second_place_message = ok2 and res2.message or res2
 		end
+		local function read_all()
+			local reads = {}
+			for i, rel in ipairs(step.read or {}) do
+				local node = core.get_node(at(rel))
+				reads[i] = {name = node.name, param2 = node.param2, on = is_on(node.name)}
+			end
+			return reads
+		end
+		-- "trace": read every output right after the inputs were set (tick
+		-- 0) and after each of the next n redstone ticks.
+		local trace = {}
+		if (step.trace or 0) > 0 then
+			trace[1] = read_all()
+			for t = 1, step.trace do
+				tick(1)
+				trace[t + 1] = read_all()
+			end
+		end
+		table.insert(result.traces, trace)
 		tick(step.wait or 0)
 		local reads = {}
 		for i, rel in ipairs(step.read or {}) do

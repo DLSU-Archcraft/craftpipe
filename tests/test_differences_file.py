@@ -65,3 +65,42 @@ def test_plain_values_can_be_compared_too():
     e = entry(suite="timing", output="rep.out", step="trace",
               minecraft={"delay_ticks": 15}, mineclonia={"delay_ticks": 10})
     check("timing", "rep.out", "trace", {"delay_ticks": 15}, {"delay_ticks": 10}, entries=[e])
+
+
+# ---- trace summaries -------------------------------------------------------
+
+from parity.differences import changes, summarise   # noqa: E402
+
+R = Reading
+
+
+def trace_of(*values):
+    return [{"x": v} for v in values]
+
+
+def test_changes_lists_tick_and_new_value():
+    t = trace_of(R(False, None), R(True, None), R(True, None), R(False, None))
+    assert changes(t, "x", before=R(False, None)) == [(1, R(True, None)), (3, R(False, None))]
+    assert changes(t, "x", before=R(True, None)) == [(0, R(False, None)), (1, R(True, None)), (3, R(False, None))]
+    assert changes(trace_of(R(False, 0), R(False, 0)), "x", before=R(False, 0)) == []
+
+
+def test_wave_summary_is_relative_to_the_reference():
+    out = [(4, R(True, None)), (14, R(False, None))]
+    assert summarise("wave", out, ref_first=2) == {
+        "changes_at": [2, 12], "values": [[True, None], [False, None]]}
+    assert summarise("wave", [], ref_first=2) == {"changes_at": [], "values": []}
+    assert summarise("wave", out, ref_first=None) == {
+        "changes_at": [4, 14], "values": [[True, None], [False, None]]}
+
+
+def test_period_summary_ignores_phase():
+    a = [(3, R(True, 15)), (8, R(False, 0)), (13, R(True, 15)), (18, R(False, 0))]
+    b = [(1, R(False, 0)), (6, R(True, 15)), (11, R(False, 0))]
+    assert summarise("period", a, None) == summarise("period", b, None) == {"half_periods": [5]}
+    assert summarise("period", [], None) == {"half_periods": []}
+
+
+def test_count_summary():
+    a = [(1, R(False, None)), (2, R(True, None)), (3, R(False, None))]
+    assert summarise("count", a, None) == {"changes": 3, "final_on": False}

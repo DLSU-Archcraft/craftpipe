@@ -1,1 +1,66 @@
-[]
+[
+ {
+  "id": "input-latency",
+  "suite": "timing",
+  "output": "*.ref",
+  "step": "*",
+  "minecraft": {
+   "latency_ticks": 0
+  },
+  "mineclonia": {
+   "latency_ticks": 1
+  },
+  "established": "measured",
+  "title": "Levers and buttons take effect one redstone tick later",
+  "explanation": "In Minecraft, flipping a lever or pressing a button powers the dust beside it at once. In Mineclonia the change is picked up on the next redstone tick (up to 0.1 s later). Everything downstream then runs with the same delays in both games, so this shifts when a circuit starts reacting to a person, not what it computes."
+ },
+ {
+  "id": "lamp-on-delay",
+  "suite": "timing",
+  "output": "lamp.out",
+  "step": "trace1",
+  "minecraft": {
+   "changes_at": [
+    0
+   ]
+  },
+  "mineclonia": {
+   "changes_at": [
+    1
+   ]
+  },
+  "established": "measured",
+  "title": "Redstone lamps light one tick later",
+  "explanation": "A lamp lights in the same tick it is powered in Minecraft, and one redstone tick later in Mineclonia. Both games turn a lamp off two ticks after it loses power. Lamps are outputs only, so this affects what a display looks like for a tenth of a second, not any signal."
+ },
+ {
+  "id": "comparator-through-powered-block",
+  "suite": "timing",
+  "output": "through_block.out",
+  "step": 1,
+  "minecraft": {
+   "power": 15
+  },
+  "mineclonia": {
+   "power": 3
+  },
+  "established": "measured",
+  "title": "Comparator reading a container through a solid block that is itself powered at 15",
+  "explanation": "A comparator can read a container through one solid block. If that block is also powered at full strength (15), Minecraft Java outputs 15 and ignores the container; Mineclonia keeps outputting the container's level. With the block unpowered, or powered below 15, both games output the container's level. Avoid powering the block between a container and its comparator."
+ },
+ {
+  "id": "dust-reshaped-beside-lamp",
+  "suite": "timing",
+  "output": "dust_beside_lamp.beside",
+  "step": 1,
+  "minecraft": {
+   "on": false
+  },
+  "mineclonia": {
+   "on": true
+  },
+  "established": "measured",
+  "title": "Dust next to a lever or button can start powering a lamp beside it",
+  "explanation": "Mineclonia connects redstone dust to lamps (and droppers and dispensers); Minecraft Java does not. craftpipe places dust with the connections Minecraft saved, so a wire running past a lamp does not light it. But using a lever or button makes Mineclonia re-shape the dust directly beside that lever or button by its own rules: if that dust also touches a lamp it was not pointing at, it connects to the lamp and lights it. The converter warns, with positions, when a build contains this arrangement. Keep one block of dust between a lever or button and any lamp the wire should pass without lighting."
+ }
+]

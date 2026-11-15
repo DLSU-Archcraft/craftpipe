@@ -95,12 +95,21 @@ class Engine:
                 "set": [{"pos": list(conv.to_luanti(circuit.inputs[k])), "on": bool(v)}
                         for k, v in step.get("set", {}).items()],
                 "wait": step.get("wait", 0),
+                "trace": step.get("trace", 0),
                 "read": [list(conv.to_luanti(circuit.outputs[k])) for k in step.get("read", [])],
             })
         result = self.run_raw(world, "circuit", conv.size, raw_steps, settle)
         assert result["place_ok"], result["place_message"]
-        return [dict(zip(step.get("read", []), reads))
-                for step, reads in zip(steps, result["steps"])]
+        out = []
+        traces = result.get("traces") or []
+        for i, (step, reads) in enumerate(zip(steps, result["steps"])):
+            names = step.get("read", [])
+            entry = dict(zip(names, reads or []))
+            if step.get("trace"):
+                # {name: raw} at tick 0 (inputs just set) and after each redstone tick
+                entry["trace"] = [dict(zip(names, tick or [])) for tick in (traces[i] or [])]
+            out.append(entry)
+        return out
 
 
 def require_luanti() -> None:

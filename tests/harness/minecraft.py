@@ -375,8 +375,9 @@ class MinecraftServer:
 
         steps: [{"set": {input: bool}, "trace": n, "wait": ticks, "read": [names]}]
         Each result maps the step's ``read`` names to a Reading; with
-        ``trace`` it also has "trace": one {name: Reading} per redstone
-        tick after the inputs were set.
+        ``trace`` it also has "trace": {name: Reading} at tick 0 (inputs
+        just set, nothing stepped yet) and after each of the n redstone
+        ticks that follow.
         """
         placed = self._place(circuit)
         self._advance(placed, settle)
@@ -387,7 +388,7 @@ class MinecraftServer:
             names = step.get("read", [])
             result = {}
             if step.get("trace"):
-                result["trace"] = []
+                result["trace"] = [{n: self._read(placed, n) for n in names}]    # tick 0
                 for _ in range(step["trace"]):
                     self._advance(placed, 1)
                     result["trace"].append({n: self._read(placed, n) for n in names})

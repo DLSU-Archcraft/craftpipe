@@ -53,8 +53,8 @@ def test_button_pulse_is_released_by_the_rig(module_minecraft, button, pulse):
     c.output("lamp", (1, 1, 1)).probe("button", (3, 1, 1))
     (out,) = module_minecraft.run(c, [{"set": {"b": True}, "trace": pulse + 6, "read": ["lamp", "button"]}])
     pressed = [t["button"].on for t in out["trace"]]
-    assert pressed == [True] * (pulse - 1) + [False] * 7      # sampled after ticks 1..n; released at `pulse`
-    assert out["trace"][0]["lamp"].on is True
+    assert pressed == [True] * pulse + [False] * 7       # ticks 0..n; released at tick `pulse`
+    assert out["trace"][0]["lamp"].on is True            # a pressed button acts at once
     assert out["lamp"].on is False
 
 

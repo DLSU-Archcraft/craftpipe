@@ -264,9 +264,8 @@ def test_known_difference_warnings():
                                    "birch_button[face=floor,facing=north,powered=false]",
                                    "stone_button[face=floor,facing=north,powered=false]",
                                    "stone"))
-    wooden = [w for w in conv.report.warnings if "wooden button" in w.lower()]
-    assert len(wooden) == 1 and "10" in wooden[0] and "15" in wooden[0]
-    assert len(conv.report.warnings) == 1          # stone buttons and stone do not warn
+    # Buttons behave the same in both games (measured by the parity rig).
+    assert conv.report.warnings == []
 
     conv = mapper.map_grid(grid_of("lectern[facing=north,has_book=true,powered=false]"))
     assert any("lectern" in w.lower() and "text" in w.lower() for w in conv.report.warnings)

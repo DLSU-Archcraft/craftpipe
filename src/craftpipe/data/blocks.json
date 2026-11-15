@@ -362,18 +362,6 @@
   "minecraft:sticky_piston": "pistons are not supported"
  },
  "warnings": {
-  "minecraft:acacia_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:bamboo_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:birch_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:cherry_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:crimson_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:dark_oak_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:jungle_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:lectern": "lecterns keep their comparator page signal, but the book's text is not carried over",
-  "minecraft:mangrove_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:oak_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:pale_oak_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:spruce_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ",
-  "minecraft:warped_button": "wooden buttons stay pressed for 10 redstone ticks in Mineclonia (15 in Minecraft Java); timing that depends on the pulse length will differ"
+  "minecraft:lectern": "lecterns keep their comparator page signal, but the book's text is not carried over"
  }
 }

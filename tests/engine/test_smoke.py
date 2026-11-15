@@ -72,3 +72,11 @@ def test_loader_warns_when_not_gradeable(engine):
     result = engine.run_raw(world, "circuit", conv.size, [])
     assert result["place_ok"] is True
     assert result["place_message"].startswith("WARNING: not gradeable")
+
+
+def test_trace_reads_every_tick(engine):
+    out = engine.run(lever_lamp(), [{"set": {"a": True}, "trace": 6, "read": ["lamp"]}])
+    trace = out[0]["trace"]
+    assert len(trace) == 7                    # tick 0 plus six ticks
+    assert trace[-1]["lamp"]["on"] is True and out[0]["lamp"]["on"] is True
+    assert [t["lamp"]["on"] for t in trace] == sorted(t["lamp"]["on"] for t in trace)   # off, then on

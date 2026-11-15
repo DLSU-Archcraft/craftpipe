@@ -455,6 +455,161 @@ def adder_all() -> Suite:
     return Suite("adder_all", ripple_adder(4), adder_steps(ADDER_ALL))
 
 
+# ==========================================================================
+# timing: tick-by-tick behaviour, and circuits aimed at suspected differences
+# ==========================================================================
+
+TRACE_TICKS = 40
+LEVER_ON_BLOCK = "minecraft:lever[face=floor,facing=north,powered=false]"
+
+
+def _line(*parts, size_y=2):
+    """lever, reference dust, then the given block states along +X; the
+    last cell is probed as "out"."""
+    c = Circuit((2 + len(parts), size_y, 1))
+    c.input("in", (0, 1, 0)).dust((1, 1, 0)).probe("ref", (1, 1, 0))
+    for i, state in enumerate(parts):
+        if state == "dust":
+            c.dust((2 + i, 1, 0))
+        else:
+            c.block(2 + i, 1, 0, state)
+    c.probe("out", (1 + len(parts), 1, 0))
+    return c
+
+
+def _locked_repeater():
+    """Saved locked and holding 1 while its data input is off; releasing
+    the lock ("in" going off) lets it fall."""
+    c = Circuit((4, 2, 4))
+    c.block(0, 1, 1, "minecraft:lever[face=floor,facing=north,powered=false]")
+    c.block(1, 1, 1, _repeater("west", locked="true", powered="true"))
+    c.output("out", (2, 1, 1), "minecraft:redstone_lamp[lit=true]")
+    c.block(1, 1, 2, _repeater("south", powered="true"))
+    c.input("in", (1, 1, 3), "minecraft:lever[face=floor,facing=north,powered=true]")
+    c.dust((2, 1, 3)).probe("ref", (2, 1, 3))
+    return c
+
+
+def _button(kind):
+    """A button with one dust beside it; the dust is both the reference
+    and the output, so its waveform is the pulse itself."""
+    c = Circuit((5, 2, 3))
+    c.block(2, 1, 1, STONE)
+    c.input("in", (3, 1, 1), f"minecraft:{kind}[face=wall,facing=east,powered=false]")
+    c.dust((3, 1, 2)).probe("ref", (3, 1, 2)).probe("out", (3, 1, 2))
+    return c
+
+
+def _clock():
+    """Torch and a 4-tick repeater in a loop: half-period 5 ticks."""
+    c = Circuit((4, 3, 4))
+    c.block(1, 1, 1, STONE)
+    c.block(2, 1, 1, "minecraft:redstone_wall_torch[facing=east,lit=true]")
+    c.dust((3, 1, 1), (3, 1, 2), (3, 1, 3))
+    c.block(2, 1, 3, _repeater("east", delay="4"))
+    c.dust((1, 1, 3), (0, 1, 3), (0, 1, 2), (0, 1, 1), (1, 2, 1))
+    c.probe("out", (3, 1, 1))
+    return c
+
+
+def _burnout():
+    """A torch that switches itself off as fast as it can."""
+    c = Circuit((3, 3, 2))
+    c.block(1, 1, 1, STONE)
+    c.block(2, 1, 1, "minecraft:redstone_wall_torch[facing=east,lit=true]")
+    c.dust((2, 1, 0), (1, 1, 0), (1, 2, 1))
+    c.probe("out", (2, 1, 0))
+    return c
+
+
+def _through_block():
+    """Chest (signal 3), solid block, comparator. The lever powers the
+    block to 15."""
+    c = Circuit((4, 3, 1))
+    c.block(0, 1, 0, "minecraft:chest[facing=north,type=single,waterlogged=false]")
+    c.grid.block_entities[(0, 1, 0)] = {"id": "minecraft:chest",
+                                        "Items": stacks("minecraft:redstone", 247)}
+    c.block(1, 1, 0, STONE).input("in", (1, 2, 0), LEVER_ON_BLOCK)
+    c.block(2, 1, 0, "minecraft:comparator[facing=west,mode=compare,powered=false]")
+    c.dust((3, 1, 0)).probe("out", (3, 1, 0))
+    return c
+
+
+def _dust_beside_lamp():
+    """The first dust touches both the lever and a lamp it does not point at."""
+    c = Circuit((5, 2, 2))
+    c.input("in", (0, 1, 0)).dust_line(1, 1, 0, 3, 0).output("end", (4, 1, 0))
+    c.output("beside", (1, 1, 1))
+    return c
+
+
+def _dust_on(block):
+    """Dust carried over a transparent block; "under" touches only that block."""
+    c = Circuit((5, 3, 2))
+    c.block(0, 1, 0, STONE).input("in", (0, 2, 0), LEVER_ON_BLOCK)
+    c.fill(1, 1, 0, 3, 1, 0, block).dust_line(1, 2, 0, 3, 0)
+    c.output("end", (4, 2, 0)).output("under", (2, 1, 1))
+    return c
+
+
+def _weak_power():
+    c = Circuit((5, 2, 2))
+    c.input("in", (0, 1, 0)).dust((1, 1, 0)).block(2, 1, 0, STONE).dust((3, 1, 0))
+    c.probe("after", (3, 1, 0)).output("lamp", (2, 1, 1))
+    return c
+
+
+def _strong_power():
+    c = Circuit((6, 2, 2))
+    c.input("in", (0, 1, 0)).dust((1, 1, 0)).block(2, 1, 0, _repeater("west"))
+    c.block(3, 1, 0, STONE).dust((4, 1, 0)).probe("after", (4, 1, 0)).output("lamp", (3, 1, 1))
+    return c
+
+
+def _torch_powers_block_above():
+    c = Circuit((3, 3, 2))
+    c.block(1, 1, 1, "minecraft:redstone_torch[lit=true]").block(1, 2, 1, STONE)
+    c.block(2, 1, 1, STONE).dust((2, 2, 1)).probe("after", (2, 2, 1))
+    return c
+
+
+# tile -> (builder, {output: how its trace is compared, or None for final readings only})
+TIMING_TILES = {
+    **{f"repeater_d{d}": (lambda d=d: _line(_repeater("west", delay=str(d)), "dust"), {"out": "wave"})
+       for d in (1, 2, 3, 4)},
+    "torch": (lambda: _line(STONE, "minecraft:redstone_wall_torch[facing=east,lit=true]", "dust"),
+              {"out": "wave"}),
+    "comparator": (lambda: _line("minecraft:comparator[facing=west,mode=compare,powered=false]", "dust"),
+                   {"out": "wave"}),
+    "lamp": (lambda: _line("minecraft:redstone_lamp[lit=false]"), {"out": "wave"}),
+    "repeater_chain": (lambda: _line(*([_repeater("west", delay="4"), "dust"] * 4)), {"out": "wave"}),
+    "locked_repeater": (_locked_repeater, {"out": "wave"}),
+    "button_stone": (lambda: _button("stone_button"), {"out": "wave"}),
+    "button_oak": (lambda: _button("oak_button"), {"out": "wave"}),
+    "clock": (_clock, {"out": "period"}),
+    "burnout": (_burnout, {"out": "count"}),
+    "through_block": (_through_block, {"out": None}),
+    "dust_beside_lamp": (_dust_beside_lamp, {"end": None, "beside": None}),
+    "dust_on_glass": (lambda: _dust_on("minecraft:glass"), {"end": None, "under": None}),
+    "dust_on_glowstone": (lambda: _dust_on("minecraft:glowstone"), {"end": None, "under": None}),
+    "weak_power": (_weak_power, {"after": None, "lamp": None}),
+    "strong_power": (_strong_power, {"after": None, "lamp": None}),
+    "torch_powers_block_above": (_torch_powers_block_above, {"after": None}),
+}
+
+
+def timing() -> Suite:
+    circuit = bench({name: build() for name, (build, _) in TIMING_TILES.items()})
+    outs = list(circuit.outputs)
+    on = {name: True for name in circuit.inputs}
+    off = {name: False for name in circuit.inputs if not name.startswith("button")}
+    return Suite("timing", circuit, [
+        {"read": outs},
+        {"set": on, "trace": TRACE_TICKS, "read": outs},
+        {"set": off, "trace": TRACE_TICKS, "read": outs},
+    ])
+
+
 ALL = {"orientation": orientation, "logic": logic, "comparator": comparator, "rom": rom,
        "adder_fast": adder_fast, "adder_all": adder_all}
 SLOW = {"adder_all"}
