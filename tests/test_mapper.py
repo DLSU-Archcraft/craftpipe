@@ -162,7 +162,7 @@ def test_lever_wall_facings_are_distinct_and_mirrored():
 def test_dust_rule_carries_power():
     conv = mapper.map_grid(grid_of("redstone_wire[power=7,north=side,south=none,east=none,west=up]",
                                    "redstone_wire[power=0]"))
-    assert node_at(conv, (0, 0, 0)) == ("mcl_redstone:redstone", 0x77)
+    assert node_at(conv, (0, 0, 0)) == ("mcl_redstone:wire_06", 0x77)
     assert node_at(conv, (1, 0, 0)) == ("mcl_redstone:redstone", 0)
 
 

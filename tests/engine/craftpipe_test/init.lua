@@ -61,11 +61,27 @@ local function run(job)
 				def.on_rightclick(pos, node, nil, ItemStack(""), {type = "node", under = pos, above = pos})
 			end
 		end
+		if step.replace_with then
+			-- Overwrite the staged files with another conversion and place
+			-- again in the same server session.
+			for _, ext in ipairs({".mts", ".craftpipe.json"}) do
+				local src = io.open(core.get_worldpath() .. "/schems/" .. step.replace_with .. ext, "rb")
+				local data = src:read("*a")
+				src:close()
+				core.safe_file_write(core.get_worldpath() .. "/schems/" .. job.name .. ext, data)
+			end
+			local ok2, res2 = craftpipe.place(origin, job.name)
+			result.second_place_ok = ok2
+			result.second_place_message = ok2 and res2.message or res2
+		end
 		tick(step.wait or 0)
 		local reads = {}
 		for i, rel in ipairs(step.read or {}) do
 			local node = core.get_node(at(rel))
-			reads[i] = {name = node.name, param2 = node.param2, on = is_on(node.name)}
+			local meta = core.get_meta(at(rel))
+			reads[i] = {name = node.name, param2 = node.param2, on = is_on(node.name),
+				meta = meta:to_table().fields,
+				main_size = meta:get_inventory():get_size("main")}
 		end
 		table.insert(result.steps, reads)
 	end

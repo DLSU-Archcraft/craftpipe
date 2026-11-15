@@ -42,30 +42,56 @@ def load_items() -> dict:
 
 
 @functools.lru_cache(maxsize=None)
-def mc_stack_size(item: str) -> int:
-    sizes = load_items()["stack_size"]
+def listed_stack_size(item: str) -> int | None:
+    """Stack size from the item table, or None when the item is not listed
+    (most unlisted items stack to 64, but that is an assumption)."""
+    table = load_items()
+    sizes = table["stack_size"]
     if item in sizes:
         return sizes[item]
     for pattern, size in sizes.items():
         if "*" in pattern and fnmatch.fnmatchcase(item, pattern):
             return size
-    return 64
+    return 64 if item in table["items"] else None
 
 
-def _to_mineclonia(item: str, report) -> str:
+def mc_stack_size(item: str) -> int:
+    size = listed_stack_size(item)
+    return 64 if size is None else size
+
+
+def _to_mineclonia(item: str, count: int, size: int, report) -> tuple[str, int]:
+    """Mineclonia (item, count) that fills a slot exactly as much as
+    ``count`` of a Minecraft item with stack size ``size``."""
     table = load_items()
     mapped = table["items"].get(item)
-    if mapped is not None:
-        return mapped
-    filler = table["filler"][str(mc_stack_size(item))]
-    if report is not None:
-        report.warn(f"item {item} has no Mineclonia equivalent; replaced with {filler} "
-                    "(same stack size, so comparator signals are unchanged)")
-    return filler
+    if mapped is not None and size == mc_stack_size(item):
+        return mapped, count
+    filler = table["filler"].get(str(size))
+    if filler is None:
+        # An unusual stack size (set by an item component): keep the same
+        # fraction of a slot using the 64-stack filler.
+        filler = table["filler"]["64"]
+        scaled = max(1, min(64, round(count * 64 / size)))
+        if report is not None:
+            report.warn(f"item {item} has an unusual stack size of {size}; replaced with "
+                        f"{filler} filling the same share of the slot (signal may be off by one)")
+        return filler, scaled
+    if report is not None and mapped is None:
+        if listed_stack_size(item) is None and size == 64:
+            report.warn(
+                f"item {item} is not in craftpipe's item table; its stack size is assumed to "
+                f"be 64 and it was replaced with {filler}. If it stacks differently in "
+                "Minecraft, comparator signals from containers holding it will be wrong "
+                "(add it to data/items.json)")
+        else:
+            report.warn(f"item {item} has no Mineclonia equivalent; replaced with {filler}, "
+                        f"which has the same stack size ({size})")
+    return filler, count
 
 
 def _stacks(entity: dict, where: Pos, report):
-    """Valid (slot, item id, count) triples from a block entity."""
+    """Valid (slot, item id, count, stack size) entries from a block entity."""
     out = []
     items = entity.get("Items", [])
     for raw in items if isinstance(items, list) else []:
@@ -77,8 +103,17 @@ def _stacks(entity: dict, where: Pos, report):
             if report is not None:
                 report.warn(f"container at {where} has an unreadable item entry; skipped")
             continue
-        if count > 0:
-            out.append((slot, name if ":" in name else "minecraft:" + name, count))
+        if count <= 0:
+            continue
+        name = name if ":" in name else "minecraft:" + name
+        size = mc_stack_size(name)
+        components = raw.get("components")
+        if isinstance(components, dict) and "minecraft:max_stack_size" in components:
+            try:
+                size = max(1, min(99, int(components["minecraft:max_stack_size"])))
+            except (TypeError, ValueError):
+                pass
+        out.append((slot, name, min(count, size), size))
     return out
 
 
@@ -106,9 +141,9 @@ def extract(grid: VoxelGrid, node_at, report=None) -> list[dict]:
         entity = grid.block_entities.get(pos, {})
         by_slot = {}
         dropped = 0
-        for slot, item, count in _stacks(entity, pos, report):
+        for slot, item, count, stack_size in _stacks(entity, pos, report):
             if 0 <= slot < slots:
-                by_slot[slot] = (item, min(count, mc_stack_size(item)))
+                by_slot[slot] = (item, count, stack_size)
             else:
                 dropped += 1
         if dropped and report is not None:
@@ -116,11 +151,13 @@ def extract(grid: VoxelGrid, node_at, report=None) -> list[dict]:
                         f"container's {slots} slots were dropped")
         out_lists = {}
         for list_name, mc_slots in lists.items():
-            out_lists[list_name] = [
-                {"slot": i + 1, "name": _to_mineclonia(by_slot[s][0], report), "count": by_slot[s][1]}
-                for i, s in enumerate(mc_slots) if s in by_slot
-            ]
-        measure = [(count, mc_stack_size(item)) for item, count in by_slot.values()]
+            stacks = []
+            for i, s in enumerate(mc_slots):
+                if s in by_slot:
+                    name, count = _to_mineclonia(*by_slot[s], report)
+                    stacks.append({"slot": i + 1, "name": name, "count": count})
+            out_lists[list_name] = stacks
+        measure = [(count, stack_size) for _, count, stack_size in by_slot.values()]
         found[pos] = (state, slots, measure, {
             "pos": list(pos), "node": node_at(pos),
             "sizes": {name: len(mc_slots) for name, mc_slots in lists.items()},

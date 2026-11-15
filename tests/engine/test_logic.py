@@ -71,6 +71,26 @@ def slab_tower(source_at_top: bool):
     return c
 
 
+def lone_dust(cross: bool):
+    """One dust on a block that a lever powers; nothing connects to the
+    dust. A cross powers the lamp beside it, a dot does not."""
+    c = Circuit((3, 3, 2))
+    c.block(1, 1, 1, STONE).input("in", (0, 1, 1), "minecraft:lever[face=wall,facing=west,powered=false]")
+    c.block(1, 2, 1, "minecraft:redstone_wire[east=side,north=side,power=0,south=side,west=side]" if cross
+            else "minecraft:redstone_wire[dot=true,east=none,north=none,power=0,south=none,west=none]")
+    c.output("lamp", (2, 2, 1))
+    return c
+
+
+def wire_past_lamp():
+    """A straight wire with a lamp beside it (not at its end). Java does
+    not power the lamp; the lamp at the end is the control."""
+    c = Circuit((6, 2, 2))
+    c.input("in", (0, 1, 0)).dust_line(1, 1, 0, 4, 0).output("end", (5, 1, 0))
+    c.output("beside", (3, 1, 1))
+    return c
+
+
 GATES = {
     "not": (not_gate, lambda a: not a),
     "nand": (nand_gate, lambda a, b: not (a and b)),
@@ -90,6 +110,9 @@ SIMPLE = {   # tile -> {output: (before, on, off)}
     "torch_tower": (torch_tower(), {"lamp": (False, True, False)}),
     "slab_up": (slab_tower(False), {"lamp": (False, True, False)}),
     "slab_down": (slab_tower(True), {"lamp": (False, False, False)}),
+    "lone_cross": (lone_dust(True), {"lamp": (False, True, False)}),
+    "lone_dot": (lone_dust(False), {"lamp": (False, False, False)}),
+    "wire_past_lamp": (wire_past_lamp(), {"end": (False, True, False), "beside": (False, False, False)}),
 }
 
 

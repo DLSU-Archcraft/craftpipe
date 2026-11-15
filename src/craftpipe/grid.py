@@ -13,6 +13,31 @@ from typing import Iterator
 
 Pos = tuple[int, int, int]
 
+MAX_AXIS = 65535            # what .mts can store
+MAX_VOLUME = 50_000_000     # cells; keeps a hostile file from exhausting memory
+FLATTENING_DATA_VERSION = 1451   # Java 1.13 (17w47a): namespaced block states
+CROSS_DUST_DATA_VERSION = 2566   # Java 1.16: unconnected dust is stored as cross or dot
+
+
+def check_size(size) -> None:
+    """Raise UnsupportedFormatError for sizes no real build has."""
+    from .errors import UnsupportedFormatError
+    sx, sy, sz = size
+    if min(sx, sy, sz) < 1:
+        raise UnsupportedFormatError(f"schematic has an empty or negative size {sx}x{sy}x{sz}")
+    if max(sx, sy, sz) > MAX_AXIS or sx * sy * sz > MAX_VOLUME:
+        raise UnsupportedFormatError(
+            f"schematic is too large ({sx}x{sy}x{sz}); the limit is {MAX_AXIS} per axis "
+            f"and {MAX_VOLUME:,} blocks in total")
+
+
+def check_data_version(version) -> None:
+    from .errors import UnsupportedFormatError
+    if version is not None and version < FLATTENING_DATA_VERSION:
+        raise UnsupportedFormatError(
+            f"schematic was saved by a Minecraft version before 1.13 (data version {version}); "
+            "its block names and states are not supported")
+
 
 @dataclass(frozen=True)
 class BlockState:
@@ -87,8 +112,9 @@ class VoxelGrid:
         self.size: Pos = (sx, sy, sz)
         self._palette: list[BlockState] = [AIR]
         self._lookup: dict[BlockState, int] = {AIR: 0}
-        self._cells = array("L", bytes(array("L").itemsize * sx * sy * sz))
+        self._cells = array("I", bytes(array("I").itemsize * sx * sy * sz))
         self.block_entities: dict[Pos, dict] = {}
+        self.data_version: int | None = None    # Minecraft data version of the source file
 
     def _index(self, x: int, y: int, z: int) -> int:
         sx, sy, sz = self.size
@@ -137,6 +163,7 @@ class VoxelGrid:
     def mirror_z(self) -> "VoxelGrid":
         sx, sy, sz = self.size
         out = VoxelGrid(self.size)
+        out.data_version = self.data_version
         remap = [out._palette_id(mirror_state(s)) for s in self._palette]
         src, dst = self._cells, out._cells
         for y in range(sy):

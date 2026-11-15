@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from . import nbt
 from .errors import UnsupportedFormatError
-from .grid import BlockState, VoxelGrid
+from .grid import BlockState, VoxelGrid, check_data_version, check_size
 
 DEFAULT_DATA_VERSION = 3953  # Java Edition 1.21
 
@@ -58,7 +58,11 @@ def read_schem(root_name: str, root: dict) -> VoxelGrid:
             raise UnsupportedFormatError(
                 f"Sponge schematic version {version} is not supported (only 2 and 3)")
         size = (int(root["Width"]) & 0xFFFF, int(root["Height"]) & 0xFFFF, int(root["Length"]) & 0xFFFF)
+        data_version = int(root["DataVersion"]) if "DataVersion" in root else None
+        check_data_version(data_version)
+        check_size(size)
         grid = VoxelGrid(size)
+        grid.data_version = data_version
         states = {int(idx): BlockState.parse(text) for text, idx in palette.items()}
         ids = _decode_varints(data, size[0] * size[1] * size[2])
         remap = {idx: grid._palette_id(state) for idx, state in states.items()}

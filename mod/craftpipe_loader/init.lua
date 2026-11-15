@@ -1,14 +1,26 @@
 -- craftpipe_loader: place a schematic produced by `craftpipe convert`.
 --
 -- A plain schematic paste skips every node's on_construct, which leaves
--- redstone dust unconnected and containers without inventories. This mod
--- places <world>/schems/<name>.mts, runs the skipped setup, and then
--- applies <name>.craftpipe.json (container contents and node metadata).
--- The manifest is parsed as JSON; nothing from it is ever executed.
+-- containers without inventories and redstone uninitialised. This mod
+-- places <world>/schems/<name>.mts, runs the skipped setup, restores the
+-- dust shapes Minecraft saved, and applies <name>.craftpipe.json
+-- (container contents, lectern pages).
+--
+-- Both files may come from someone else (a student submission), so they
+-- are treated as untrusted:
+--   * the manifest is parsed as JSON and never executed;
+--   * the schematic may only contain nodes the converter can produce
+--     (allowed_nodes.lua), so it cannot carry e.g. a command block;
+--   * the manifest may only fill inventories of container nodes and set
+--     the page of a lectern; no other metadata can be written.
 
 craftpipe = {}
 
 local MANIFEST_FORMAT = 1
+local ALLOWED_NODES = dofile(core.get_modpath(core.get_current_modname()) .. "/allowed_nodes.lua")
+local ALLOWED_LISTS = {main = true, src = true, fuel = true, dst = true}
+local LECTERN = "mcl_lectern:lectern_with_book"
+local DOT = "mcl_redstone:redstone"
 
 local function schems_dir()
 	return core.get_worldpath() .. "/schems/"
@@ -39,7 +51,7 @@ local function inside(p, size)
 end
 
 -- Returns manifest, or nil and a message.
-local function load_manifest(name, mts_size)
+local function load_manifest(name, mts_size, mts_sha1)
 	local text = read_file(schems_dir() .. name .. ".craftpipe.json")
 	if not text then
 		return nil, "no manifest " .. name .. ".craftpipe.json next to the schematic; "
@@ -53,16 +65,18 @@ local function load_manifest(name, mts_size)
 		return nil, "manifest format " .. tostring(manifest.format) .. " is not supported by this loader"
 	end
 	local size = manifest.size
-	if not is_pos_list(size) or size[1] ~= mts_size.x or size[2] ~= mts_size.y
-			or size[3] ~= mts_size.z then
-		return nil, "manifest does not belong to this schematic (sizes differ)"
+	if manifest.mts_sha1 ~= mts_sha1 or not is_pos_list(size) or size[1] ~= mts_size.x
+			or size[2] ~= mts_size.y or size[3] ~= mts_size.z then
+		return nil, "manifest does not belong to this schematic; copy the .mts and the "
+			.. ".craftpipe.json from the same conversion"
 	end
 	for _, key in ipairs({"containers", "meta"}) do
 		local list = manifest[key]
 		if list ~= nil and type(list) ~= "table" then
 			return nil, "manifest field '" .. key .. "' is malformed"
 		end
-		for _, entry in ipairs(list or {}) do
+		for i = 1, #(list or {}) do
+			local entry = list[i]
 			if type(entry) ~= "table" or not is_pos_list(entry.pos)
 					or not inside(entry.pos, size) then
 				return nil, "manifest refers to a position outside the schematic"
@@ -70,6 +84,72 @@ local function load_manifest(name, mts_size)
 		end
 	end
 	return manifest
+end
+
+-- Luanti caches schematics by file name until the server restarts, so a
+-- re-converted build would silently be replaced by the stale copy. Place
+-- from a copy named after the file's contents instead.
+local function content_addressed_copy(data, sha1)
+	local dir = schems_dir() .. "craftpipe_cache"
+	core.mkdir(dir)
+	local path = dir .. "/" .. sha1 .. ".mts"
+	if read_file(path) ~= data then
+		if not core.safe_file_write(path, data) then
+			return nil
+		end
+	end
+	return path
+end
+
+local function wire_flags(name)
+	if name == DOT then
+		return 0
+	end
+	local hex = name:match("^mcl_redstone:wire_(%x%x)$")
+	return hex and tonumber(hex, 16) or nil
+end
+
+local function wire_name(flags)
+	return flags == 0 and DOT or string.format("mcl_redstone:wire_%02x", flags)
+end
+
+-- Checks every node name and collects the dust shapes saved by Minecraft.
+-- Returns list of {x, y, z, mask} (schematic-relative), or nil and a message.
+local function inspect_schematic(schematic)
+	local size = schematic.size
+	local verdict = {}        -- name -> true (ok) / false (refused)
+	local refused, n_refused = {}, 0
+	local wires = {}
+	local i = 1
+	for z = 0, size.z - 1 do
+		for y = 0, size.y - 1 do
+			for x = 0, size.x - 1 do
+				local name = schematic.data[i].name
+				local ok = verdict[name]
+				if ok == nil then
+					ok = ALLOWED_NODES[name] == true and
+						(name == "air" or core.registered_nodes[name] ~= nil)
+					verdict[name] = ok
+					if not ok and n_refused < 5 then
+						n_refused = n_refused + 1
+						refused[n_refused] = name
+					end
+				end
+				if ok then
+					local flags = wire_flags(name)
+					if flags then
+						wires[#wires + 1] = {x, y, z, flags % 16}
+					end
+				end
+				i = i + 1
+			end
+		end
+	end
+	if n_refused > 0 then
+		return nil, "schematic contains nodes craftpipe does not produce or this game does not "
+			.. "have (" .. table.concat(refused, ", ") .. "); refusing to place it"
+	end
+	return wires
 end
 
 local function world_pos(origin, rel)
@@ -107,6 +187,25 @@ local function construct_nodes(p1, p2)
 	return count
 end
 
+-- Mineclonia re-shapes dust in on_construct by its own rules, which differ
+-- from Java's (dust connects to lamps and droppers; an unconnected dust
+-- becomes a dot). Keep Mineclonia's "climbs onto the next block" bits, but
+-- put the four horizontal connections back to what Minecraft saved.
+local function restore_dust_shapes(origin, wires)
+	for _, w in ipairs(wires) do
+		local pos = vector.new(origin.x + w[1], origin.y + w[2], origin.z + w[3])
+		local node = core.get_node(pos)
+		local current = wire_flags(node.name)
+		if current then
+			local mask = w[4]
+			local wanted = wire_name(mask + 16 * bit.band(math.floor(current / 16), mask))
+			if wanted ~= node.name and core.registered_nodes[wanted] then
+				core.swap_node(pos, {name = wanted, param2 = node.param2})
+			end
+		end
+	end
+end
+
 -- Some Mineclonia containers only set themselves up when a player places
 -- them (droppers), or when the game turns a single chest into a double
 -- one, so on_construct alone leaves them without an inventory.
@@ -115,8 +214,8 @@ local function prepare_inventory(pos, inv, sizes)
 		return
 	end
 	local missing = false
-	for listname, size in pairs(sizes) do
-		if type(listname) == "string" and inv:get_size(listname) == 0 then
+	for listname in pairs(sizes) do
+		if ALLOWED_LISTS[listname] and inv:get_size(listname) == 0 then
 			missing = true
 		end
 	end
@@ -129,107 +228,168 @@ local function prepare_inventory(pos, inv, sizes)
 	end
 	for listname, size in pairs(sizes) do
 		size = tonumber(size)
-		if type(listname) == "string" and size and size >= 1 and size <= 256
+		if ALLOWED_LISTS[listname] and size and size >= 1 and size <= 27
 				and inv:get_size(listname) < size then
 			inv:set_size(listname, size)
 		end
 	end
 end
 
+-- Returns containers filled, item stacks that could not be placed.
 local function apply_containers(origin, manifest)
-	local filled = 0
-	for _, entry in ipairs(manifest.containers or {}) do
+	local filled, skipped = 0, 0
+	local list = manifest.containers or {}
+	for e = 1, #list do
+		local entry = list[e]
 		local pos = world_pos(origin, entry.pos)
-		local inv = core.get_meta(pos):get_inventory()
-		prepare_inventory(pos, inv, entry.sizes)
-		for listname, stacks in pairs(type(entry.lists) == "table" and entry.lists or {}) do
-			local size = inv:get_size(listname)
-			for _, stack in ipairs(type(stacks) == "table" and stacks or {}) do
-				local slot, item, n = tonumber(stack.slot), stack.name, tonumber(stack.count)
-				if slot and n and type(item) == "string" and slot >= 1 and slot <= size
-						and core.registered_items[item] then
-					inv:set_stack(listname, slot, ItemStack({name = item, count = n}))
+		local name = core.get_node(pos).name
+		-- Only real containers placed by this schematic get an inventory.
+		if ALLOWED_NODES[name] and core.get_item_group(name, "container") ~= 0 then
+			local inv = core.get_meta(pos):get_inventory()
+			prepare_inventory(pos, inv, entry.sizes)
+			for listname, stacks in pairs(type(entry.lists) == "table" and entry.lists or {}) do
+				if ALLOWED_LISTS[listname] and type(stacks) == "table" then
+					local size = inv:get_size(listname)
+					for s = 1, #stacks do
+						local stack = stacks[s]
+						local slot = type(stack) == "table" and tonumber(stack.slot)
+						local n = type(stack) == "table" and tonumber(stack.count)
+						local item = type(stack) == "table" and stack.name
+						if slot and n and type(item) == "string" and slot >= 1 and slot <= size
+								and slot == math.floor(slot) and n >= 1
+								and core.registered_items[item] then
+							inv:set_stack(listname, slot, ItemStack({name = item, count = n}))
+						else
+							skipped = skipped + 1
+						end
+					end
+				end
+			end
+			filled = filled + 1
+			if mcl_redstone.update_comparators then
+				mcl_redstone.update_comparators(pos)
+			end
+		end
+	end
+	return filled, skipped
+end
+
+-- The only metadata a manifest may set: which page a lectern's book is on.
+local function apply_meta(origin, manifest)
+	local list = manifest.meta or {}
+	for e = 1, #list do
+		local entry = list[e]
+		local pos = world_pos(origin, entry.pos)
+		local fields = entry.fields
+		if core.get_node(pos).name == LECTERN and type(fields) == "table" then
+			local pages, page = tonumber(fields.pages), tonumber(fields.page)
+			if pages and page and pages >= 1 and pages <= 1000 and page >= 1 and page <= pages then
+				local meta = core.get_meta(pos)
+				meta:set_string("pages", tostring(math.floor(pages)))
+				meta:set_string("page", tostring(math.floor(page)))
+				if mcl_redstone.update_comparators then
+					mcl_redstone.update_comparators(pos)
 				end
 			end
 		end
-		filled = filled + 1
-		if mcl_redstone.update_comparators then
-			mcl_redstone.update_comparators(pos)
-		end
-	end
-	return filled
-end
-
-local function apply_meta(origin, manifest)
-	for _, entry in ipairs(manifest.meta or {}) do
-		local meta = core.get_meta(world_pos(origin, entry.pos))
-		for key, value in pairs(type(entry.fields) == "table" and entry.fields or {}) do
-			if type(key) == "string" and (type(value) == "string" or type(value) == "number") then
-				meta:set_string(key, tostring(value))
-			end
-		end
 	end
 end
 
---- Place schematic `name` with its minimum corner at `pos`.
--- The target area must already be generated (see craftpipe.place_async).
--- Returns true and a stats table {nodes, containers, complete, message},
--- or false and a message. Nothing is placed on failure.
-function craftpipe.place(pos, name)
-	if type(name) ~= "string" or not name:match("^[%w_%-]+$") then
-		return false, "invalid schematic name (use letters, digits, _ and - only)"
+local function valid_name(name)
+	return type(name) == "string" and name:match("^[%w_%-]+$") ~= nil
+end
+
+-- Reads and checks both files. Returns {path, schematic, manifest, wires}
+-- or nil and a message.
+local function prepare(name)
+	if not valid_name(name) then
+		return nil, "invalid schematic name (use letters, digits, _ and - only)"
 	end
-	local path = schems_dir() .. name .. ".mts"
-	local schematic = core.read_schematic(path, {})
+	local data = read_file(schems_dir() .. name .. ".mts")
+	if not data then
+		return nil, "cannot read " .. name .. ".mts from the world's schems folder"
+	end
+	local sha1 = core.sha1(data)
+	local path = content_addressed_copy(data, sha1)
+	local schematic = path and core.read_schematic(path, {})
 	if not schematic then
-		return false, "cannot read " .. name .. ".mts from the world's schems folder"
+		return nil, name .. ".mts is not a schematic this server can read"
 	end
-	local manifest, err = load_manifest(name, schematic.size)
+	local manifest, err = load_manifest(name, schematic.size, sha1)
 	if not manifest then
-		return false, err
+		return nil, err
 	end
+	local wires, refused = inspect_schematic(schematic)
+	if not wires then
+		return nil, refused
+	end
+	return {path = path, schematic = schematic, manifest = manifest, wires = wires}
+end
 
+local function place_prepared(pos, name, job)
+	local size = job.schematic.size
 	local p1 = vector.round(pos)
-	local p2 = vector.add(p1, vector.subtract(schematic.size, 1))
-	if core.place_schematic(p1, path, "0", nil, true) == nil then
+	local p2 = vector.add(p1, vector.subtract(size, 1))
+	if core.place_schematic(p1, job.path, "0", nil, true) == nil then
 		return false, "the engine refused to place the schematic"
 	end
 	local nodes = construct_nodes(p1, p2)
-	local containers = apply_containers(p1, manifest)
-	apply_meta(p1, manifest)
+	restore_dust_shapes(p1, job.wires)
+	local containers, skipped = apply_containers(p1, job.manifest)
+	apply_meta(p1, job.manifest)
 
 	local message = string.format("placed %s: %dx%dx%d, %d nodes set up, %d container(s) filled",
-		name, schematic.size.x, schematic.size.y, schematic.size.z, nodes, containers)
-	if manifest.complete == false then
+		name, size.x, size.y, size.z, nodes, containers)
+	if skipped > 0 then
+		message = message .. ". WARNING: " .. skipped .. " item stack(s) could not be placed "
+			.. "(unknown item or slot); container signals will differ from the original"
+	end
+	if job.manifest.complete == false then
 		local n = 0
-		for _ in pairs(type(manifest.substituted) == "table" and manifest.substituted or {}) do
+		for _ in pairs(type(job.manifest.substituted) == "table" and job.manifest.substituted or {}) do
 			n = n + 1
 		end
 		message = "WARNING: not gradeable. " .. n .. " kind(s) of block had no Mineclonia "
 			.. "equivalent and were replaced with placeholders; the circuit may not behave "
 			.. "like the original. " .. message
 	end
-	return true, {nodes = nodes, containers = containers,
-		complete = manifest.complete ~= false, message = message}
+	return true, {nodes = nodes, containers = containers, skipped_stacks = skipped,
+		complete = job.manifest.complete ~= false, message = message}
+end
+
+--- Place schematic `name` with its minimum corner at `pos`.
+-- The target area must already be generated (see craftpipe.place_async).
+-- Returns true and a stats table {nodes, containers, skipped_stacks,
+-- complete, message}, or false and a message. Nothing is placed on failure.
+function craftpipe.place(pos, name)
+	local job, err = prepare(name)
+	if not job then
+		return false, err
+	end
+	return place_prepared(pos, name, job)
 end
 
 --- Generate the target area if needed, then place. `callback(ok, result)`
 -- receives what craftpipe.place returns.
 function craftpipe.place_async(pos, name, callback)
-	if type(name) ~= "string" or not name:match("^[%w_%-]+$") then
-		callback(false, "invalid schematic name (use letters, digits, _ and - only)")
-		return
-	end
-	local schematic = core.read_schematic(schems_dir() .. name .. ".mts", {})
-	if not schematic then
-		callback(false, "cannot read " .. name .. ".mts from the world's schems folder")
+	local job, err = prepare(name)
+	if not job then
+		callback(false, err)
 		return
 	end
 	local p1 = vector.round(pos)
-	local p2 = vector.add(p1, vector.subtract(schematic.size, 1))
-	core.emerge_area(vector.subtract(p1, 1), vector.add(p2, 1), function(_, _, remaining)
-		if remaining == 0 then
-			callback(craftpipe.place(p1, name))
+	local p2 = vector.add(p1, vector.subtract(job.schematic.size, 1))
+	local done = false
+	core.emerge_area(vector.subtract(p1, 1), vector.add(p2, 1), function(_, action, remaining)
+		if done then
+			return
+		end
+		if action == core.EMERGE_CANCELLED or action == core.EMERGE_ERRORED then
+			done = true
+			callback(false, "the area could not be generated; nothing was placed")
+		elseif remaining == 0 then
+			done = true
+			callback(place_prepared(p1, name, job))
 		end
 	end)
 end

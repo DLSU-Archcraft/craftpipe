@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from . import nbt
 from .errors import UnsupportedFormatError
-from .grid import AIR, BlockState, VoxelGrid
+from .grid import AIR, BlockState, VoxelGrid, check_data_version, check_size
 from .schem import DEFAULT_DATA_VERSION
 
 _MASK64 = (1 << 64) - 1
@@ -65,7 +65,13 @@ def read_litematic(root: dict) -> VoxelGrid:
             raise UnsupportedFormatError("litematic file contains no regions")
         lo = tuple(min(r[0][a] for r in regions) for a in range(3))
         hi = tuple(max(r[0][a] + r[1][a] for r in regions) for a in range(3))
-        grid = VoxelGrid(tuple(h - l for h, l in zip(hi, lo)))
+        data_version = (int(root["MinecraftDataVersion"])
+                        if "MinecraftDataVersion" in root else None)
+        check_data_version(data_version)
+        total = tuple(h - l for h, l in zip(hi, lo))
+        check_size(total)
+        grid = VoxelGrid(total)
+        grid.data_version = data_version
         for origin, (sx, sy, sz), region in regions:
             palette = [_state_from_entry(e) for e in region["BlockStatePalette"]]
             ids = _unpack(region["BlockStates"], _bits_for(len(palette)), sx * sy * sz)

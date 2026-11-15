@@ -16,6 +16,77 @@ LAMP = "minecraft:redstone_lamp[lit=false]"
 DUST = "minecraft:redstone_wire[east=none,north=none,power=0,south=none,west=none]"
 
 
+# --------------------------------------------------------------------------
+# Dust connection states, as Java Edition (1.16+) computes and saves them.
+# Real schematics carry these, and the converter relies on them, so the
+# generated test inputs must too. Dust placed with all four sides "none"
+# is treated as "not yet shaped" and filled in here; to save a deliberate
+# dot, give the state dot=true (stripped on save).
+# --------------------------------------------------------------------------
+
+_WIRE = "minecraft:redstone_wire"
+_HORIZONTAL = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
+_OPP = {"north": "south", "south": "north", "east": "west", "west": "east"}
+# Signal sources: dust connects to these from any side.
+_SOURCES = ("minecraft:lever", "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
+            "minecraft:redstone_block", "minecraft:comparator", "minecraft:target",
+            "minecraft:trapped_chest")
+# Full opaque cubes used by the test circuits ("redstone conductors").
+_CONDUCTORS = ("minecraft:stone", "minecraft:redstone_lamp", "minecraft:white_wool",
+               "minecraft:redstone_block", "minecraft:target", "minecraft:dragon_egg")
+
+
+def _get(grid, x, y, z):
+    sx, sy, sz = grid.size
+    if 0 <= x < sx and 0 <= y < sy and 0 <= z < sz:
+        return grid.get(x, y, z)
+    return BlockState("minecraft:air")
+
+
+def _connects(state, side) -> bool:
+    name = state.name
+    if name == _WIRE or name in _SOURCES or name.endswith("_button"):
+        return True
+    if name == "minecraft:repeater":
+        return state.get("facing") in (side, _OPP[side])
+    return False
+
+
+def _sturdy_top(state) -> bool:
+    return (state.name in _CONDUCTORS or state.name == "minecraft:hopper"
+            or (state.name.endswith("_slab") and state.get("type") in ("top", "double")))
+
+
+def java_dust_shapes(grid: VoxelGrid) -> None:
+    todo = []
+    for (x, y, z), state in grid.cells():
+        if state.name != _WIRE:
+            continue
+        if state.get("dot") == "true":
+            todo.append(((x, y, z), BlockState(_WIRE, tuple(p for p in state.props if p[0] != "dot"))))
+            continue
+        if any(state.get(s, "none") != "none" for s in _HORIZONTAL):
+            continue                                    # shaped by hand
+        open_above = _get(grid, x, y + 1, z).name not in _CONDUCTORS
+        sides = {}
+        for side, (dx, dz) in _HORIZONTAL.items():
+            beside = _get(grid, x + dx, y, z + dz)
+            if _connects(beside, side):
+                sides[side] = "side"
+            elif open_above and _sturdy_top(beside) and _get(grid, x + dx, y + 1, z + dz).name == _WIRE:
+                sides[side] = "up" if beside.name in _CONDUCTORS else "side"
+            elif beside.name not in _CONDUCTORS and _get(grid, x + dx, y - 1, z + dz).name == _WIRE:
+                sides[side] = "side"
+        if len(sides) == 1:
+            (only,) = sides
+            sides[_OPP[only]] = "side"
+        elif not sides:
+            sides = dict.fromkeys(_HORIZONTAL, "side")   # Java's default: a cross
+        todo.append(((x, y, z), state.with_props(**{s: sides.get(s, "none") for s in _HORIZONTAL})))
+    for pos, state in todo:
+        grid.set(*pos, state)
+
+
 class Circuit:
     def __init__(self, size):
         self.grid = VoxelGrid(size)
@@ -79,6 +150,7 @@ class Circuit:
         return self
 
     def save(self, path) -> None:
+        java_dust_shapes(self.grid)
         if os.fspath(path).endswith(".litematic"):
             litematic.write_litematic(self.grid, path)
         else:

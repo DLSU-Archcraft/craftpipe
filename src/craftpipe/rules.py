@@ -25,16 +25,39 @@ class Node(NamedTuple):
 
 Rule = Callable[..., Optional[Node]]
 RULES: dict[str, Rule] = {}
+# rule name -> the block-state properties it reads, with every value each can take.
+DOMAINS: dict[str, dict[str, tuple[str, ...]]] = {}
+
+_H4 = ("north", "south", "east", "west")
+_TF = ("true", "false")
+_FACE = ("floor", "wall", "ceiling")
 
 
-def rule(name: str):
+def rule(name: str, **domain: tuple[str, ...]):
+    """Register a rule. ``domain`` lists the properties the rule reads, so
+    that every node name it can produce can be enumerated (see
+    ``possible_nodes``); the loader only accepts schematics made of those."""
     def register(fn: Rule) -> Rule:
         RULES[name] = fn
+        DOMAINS[name] = domain
         return fn
     return register
 
 
-@rule("slab")
+def possible_nodes(name: str, **extra) -> set[str]:
+    """Every node name rule ``name`` can return."""
+    import itertools
+    domain = DOMAINS[name]
+    keys = list(domain)
+    out = set()
+    for values in itertools.product(*(domain[k] for k in keys)):
+        node = RULES[name](BlockState("minecraft:x", tuple(zip(keys, values))), **extra)
+        if node is not None:
+            out.add(node.name)
+    return out
+
+
+@rule("slab", type=("bottom", "top", "double"))
 def slab(state: BlockState, base: str) -> Node:
     suffix = {"top": "_top", "double": "_double"}.get(state.get("type", "bottom"), "")
     return Node(base + suffix)
@@ -52,23 +75,48 @@ def _on(state: BlockState, key: str = "powered") -> bool:
     return state.get(key, "false") == "true"
 
 
-@rule("dust")
+# Mineclonia names each dust shape mcl_redstone:wire_XY. The low hex digit
+# has one bit per horizontal connection; the high digit marks connections
+# that climb onto the neighbouring block.
+DUST_BITS = {"north": 0x1, "west": 0x2, "south": 0x4, "east": 0x8}
+_DUST_SIDE = ("none", "side", "up")
+
+
+def dust_mask(state: BlockState) -> int:
+    """Horizontal connections of a (mirrored) redstone_wire state."""
+    mask = 0
+    for side, bit in DUST_BITS.items():
+        if state.get(side, "none") != "none":
+            mask |= bit
+    # A single connection is drawn, and behaves, as a straight line.
+    return {0x1: 0x5, 0x4: 0x5, 0x2: 0xA, 0x8: 0xA}.get(mask, mask)
+
+
+def dust_name(mask: int) -> str:
+    return "mcl_redstone:redstone" if mask == 0 else f"mcl_redstone:wire_{mask:02x}"
+
+
+@rule("dust", north=_DUST_SIDE, east=_DUST_SIDE, south=_DUST_SIDE, west=_DUST_SIDE)
 def dust(state: BlockState) -> Node:
-    # The loader's on_construct pass picks the connected shape; Mineclonia
-    # keeps the power level in both nibbles of param2.
+    # Mineclonia decides dust connections by its own rules, which differ
+    # from Java's (it connects dust to lamps and droppers, and makes an
+    # unconnected dust a dot). The shape saved by Minecraft is what the
+    # circuit was built around, so it is written out as is; the loader
+    # only lets Mineclonia add the climbing bits. Power goes in both
+    # nibbles of param2.
     try:
         power = max(0, min(15, int(state.get("power", "0"))))
     except ValueError:
         power = 0
-    return Node("mcl_redstone:redstone", power * 17)
+    return Node(dust_name(dust_mask(state)), power * 17)
 
 
-@rule("lamp")
+@rule("lamp", lit=_TF)
 def lamp(state: BlockState) -> Node:
     return Node("mcl_redstone_lamp:lamp_on" if _on(state, "lit") else "mcl_redstone_lamp:lamp_off")
 
 
-@rule("lever")
+@rule("lever", face=_FACE, facing=_H4, powered=_TF)
 def lever(state: BlockState) -> Optional[Node]:
     # Mineclonia levers use facedir; facedir_to_dir(param2) points at the
     # block the lever is attached to (values from mcl_lever's on_place).
@@ -84,7 +132,7 @@ def lever(state: BlockState) -> Optional[Node]:
     return Node(name, FACEDIR[OPPOSITE[facing]])
 
 
-@rule("repeater")
+@rule("repeater", facing=_H4, powered=_TF, locked=_TF, delay=("1", "2", "3", "4"))
 def repeater(state: BlockState) -> Optional[Node]:
     # Minecraft's `facing` names the input side; Mineclonia's 4dir param2
     # is the output direction. Locked repeaters keep their delay in param2.
@@ -102,7 +150,7 @@ def repeater(state: BlockState) -> Optional[Node]:
     return Node(f"mcl_repeaters:repeater_{power}_{delay}", direction)
 
 
-@rule("comparator")
+@rule("comparator", facing=_H4, powered=_TF, mode=("compare", "subtract"))
 def comparator(state: BlockState) -> Optional[Node]:
     # param2 = 4 * output strength + output direction. The strength lives
     # in the block entity; the mapper adds it (see mapper.map_grid).
@@ -114,13 +162,13 @@ def comparator(state: BlockState) -> Optional[Node]:
     return Node(f"mcl_comparators:comparator_{power}_{mode}", FACEDIR[OPPOSITE[facing]])
 
 
-@rule("torch")
+@rule("torch", lit=_TF)
 def torch(state: BlockState) -> Node:
     lit = "on" if _on(state, "lit") else "off"
     return Node(f"mcl_redstone_torch:redstone_torch_{lit}", WALLMOUNTED["down"])
 
 
-@rule("wall_torch")
+@rule("wall_torch", facing=_H4, lit=_TF)
 def wall_torch(state: BlockState) -> Optional[Node]:
     # `facing` is the way the torch points; it hangs on the block behind it.
     facing = state.get("facing", "north")
@@ -130,7 +178,7 @@ def wall_torch(state: BlockState) -> Optional[Node]:
     return Node(f"mcl_redstone_torch:redstone_torch_{lit}_wall", WALLMOUNTED[OPPOSITE[facing]])
 
 
-@rule("button")
+@rule("button", face=_FACE, facing=_H4, powered=_TF)
 def button(state: BlockState, material: str) -> Optional[Node]:
     name = f"mcl_buttons:button_{material}_{'on' if _on(state) else 'off'}"
     face, facing = state.get("face", "wall"), state.get("facing", "north")
@@ -149,7 +197,7 @@ def _front(state: BlockState) -> Optional[int]:
     return FACEDIR[OPPOSITE[facing]] if facing in FACEDIR else None
 
 
-@rule("chest")
+@rule("chest", facing=_H4, type=("single", "left", "right"))
 def chest(state: BlockState, base: str) -> Optional[Node]:
     # `type` was already swapped by the Z mirror, so left/right line up
     # with Mineclonia's own left and right halves.
@@ -160,14 +208,14 @@ def chest(state: BlockState, base: str) -> Optional[Node]:
     return Node(base + suffix, param2)
 
 
-@rule("front_facing")
+@rule("front_facing", facing=_H4 + ("up", "down"))
 def front_facing(state: BlockState, node: str) -> Node:
     """Furnaces, barrels: horizontal facing only matters for looks."""
     param2 = _front(state)
     return Node(node, 0 if param2 is None else param2)
 
 
-@rule("hopper")
+@rule("hopper", facing=_H4 + ("down",), enabled=_TF)
 def hopper(state: BlockState) -> Optional[Node]:
     disabled = "_disabled" if state.get("enabled", "true") == "false" else ""
     facing = state.get("facing", "down")
@@ -179,7 +227,7 @@ def hopper(state: BlockState) -> Optional[Node]:
     return Node("mcl_hoppers:hopper_side" + disabled, (FACEDIR[facing] + 1) % 4)
 
 
-@rule("dropper")
+@rule("dropper", facing=_H4 + ("up", "down"))
 def dropper(state: BlockState, base: str) -> Optional[Node]:
     facing = state.get("facing", "north")
     if facing in ("up", "down"):
@@ -189,7 +237,7 @@ def dropper(state: BlockState, base: str) -> Optional[Node]:
     return Node(base, FACEDIR[OPPOSITE[facing]])
 
 
-@rule("lectern")
+@rule("lectern", facing=_H4, has_book=_TF)
 def lectern(state: BlockState) -> Node:
     name = "mcl_lectern:lectern_with_book" if state.get("has_book") == "true" else "mcl_lectern:lectern"
     param2 = _front(state)

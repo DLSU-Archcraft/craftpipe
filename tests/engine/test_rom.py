@@ -122,3 +122,4 @@ def test_manifest_signal_matches_engine(run):
 def test_loader_reports_containers(run):
     *_, result = run
     assert result["place_stats"]["containers"] == len(TILES) - 1 + 2   # lectern is meta; double has 2
+    assert result["place_stats"]["skipped_stacks"] == 0

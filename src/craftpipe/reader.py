@@ -32,6 +32,8 @@ def read_schematic(path) -> VoxelGrid:
             return read_schem(root_name, root)
     except UnsupportedFormatError as exc:
         raise UnsupportedFormatError(f"{label}: {exc}") from None
+    except (MemoryError, OverflowError):
+        raise UnsupportedFormatError(f"{label}: schematic is too large to load") from None
     if "Materials" in root or isinstance(root.get("Blocks"), nbt.ByteArray):
         raise UnsupportedFormatError(
             f"{label}: MCEdit .schematic (numeric block IDs, pre-1.13) is not supported")

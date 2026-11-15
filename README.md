@@ -9,7 +9,8 @@ A conversion produces two files:
 
 - `build.mts`: the blocks.
 - `build.craftpipe.json`: a manifest with what `.mts` cannot hold
-  (container contents for comparator ROM, lectern pages).
+  (container contents for comparator ROM, lectern pages). It records a
+  hash of the `.mts`, so the two files must come from the same conversion.
 
 The bundled Luanti mod `craftpipe_loader` places both and makes the circuit
 work.
@@ -78,7 +79,8 @@ mapping table.
 1. Copy `mod/craftpipe_loader` into the world's `worldmods/` folder (or
    into your Luanti `mods/` folder and enable it for the world).
 2. Copy `build.mts` and `build.craftpipe.json` into `<world>/schems/`
-   (the same folder WorldEdit uses).
+   (the same folder WorldEdit uses). The base name may contain only
+   letters, digits, `_` and `-`; the converter warns if it does not.
 3. In the game, with the `server` privilege, stand where the build's
    lowest corner should go and run:
 
@@ -92,11 +94,25 @@ or `craftpipe.place_async(pos, "build", callback)`.
 ### Why not WorldEdit's `//mtschemplace`?
 
 It will place the blocks, but pasting a schematic skips each node's setup
-step. Redstone dust stays as unconnected dots, containers have no
-inventory, and ROM is empty. `craftpipe_loader` runs that setup, lets
-Mineclonia initialise the redstone, and fills the containers from the
-manifest. The manifest is read as JSON and is never executed, so a file
-from a student cannot run code on the grader's machine.
+step: containers have no inventory, ROM is empty, and dust that climbs
+onto a block is not connected. `craftpipe_loader` runs that setup, lets
+Mineclonia initialise the redstone, restores the dust shapes Minecraft
+saved, and fills the containers from the manifest.
+
+### Loading files from students
+
+The loader treats both files as untrusted:
+
+- The manifest is parsed as JSON and never executed.
+- A schematic is refused if it contains any node the converter cannot
+  produce (the list is `mod/craftpipe_loader/allowed_nodes.lua`), so a
+  hand-made `.mts` cannot bring in a command block or similar.
+- The manifest can only fill the inventories of container nodes and set
+  the page of a lectern. It cannot write any other metadata.
+- A manifest that does not match the `.mts` (by hash) is refused.
+
+Re-converting a build and placing it again works without restarting the
+server; the loader does not use Luanti's by-name schematic cache.
 
 ## What is supported
 
@@ -119,6 +135,17 @@ Stored state is carried over: lever positions, lit torches, repeater delay
 and lock, comparator mode and output, dust power. A latch saved while
 holding a bit still holds it after loading.
 
+### Redstone dust shapes
+
+Minecraft saves which of its four sides each dust connects to, and a
+circuit depends on that: a lone "cross" powers all four neighbours, a
+"dot" none, a line only its two ends. Mineclonia works these out by its
+own rules, which differ (it connects dust to lamps, droppers and
+dispensers, and turns an unconnected dust into a dot). craftpipe therefore
+writes each dust with the connections Minecraft saved, and the loader
+keeps them that way. Files from before Java 1.16 store an unconnected dust
+with no sides; those are treated as crosses, as they behaved then.
+
 ### Coordinates
 
 Minecraft's +Z points south and Luanti's +Z points north, so the build is
@@ -133,8 +160,12 @@ Comparator output depends only on how full each slot is, so craftpipe
 preserves the signal strength, not necessarily the items. Common items are
 mapped; anything else becomes a filler with the same stack size
 (cobblestone for 64, snowball for 16, wooden shovel for 1) and is listed
-as a warning. Each container's expected signal is written to the manifest
-as `signal`.
+as a warning. Stack sizes come from a table in
+`src/craftpipe/data/items.json` and from the item's own
+`max_stack_size` component when it has one. An item the table does not
+know is assumed to stack to 64, with a warning that says so: check those,
+because a wrong stack size means a wrong signal. Each container's expected
+signal is written to the manifest as `signal`.
 
 ## Adding a block
 
@@ -177,6 +208,11 @@ the circuit a known number of ticks. That is how the tests here drive it.
 
 ## Known differences from Minecraft Java
 
+- **Dust beside a lever or button.** Using a lever or button makes
+  Mineclonia re-shape the dust next to it by its own rules. If that dust
+  also touches a lamp, dropper or dispenser it was not connected to, it
+  will connect to it and power it. The converter warns with positions
+  when a build contains this.
 - **Wooden buttons** stay pressed for 10 redstone ticks (15 in Minecraft).
   Stone buttons are 10 in both. The converter warns when it sees one.
 - **Comparator reading a container through a solid block**: Mineclonia
@@ -187,13 +223,21 @@ the circuit a known number of ticks. That is how the tests here drive it.
   smelt will start smelting and its signal will change, as in Minecraft.
 - **Pistons, observers, slime, honey**: not converted (see above).
 
-Checked and found the same as Java: dust connection shapes and the
-15-block range, signal going up a tower of top slabs but not down, torch
+Checked and found the same as Java: the 15-block dust range, a lone cross
+powering its neighbours and a lone dot not, a wire passing a lamp without
+lighting it, signal going up a tower of top slabs but not down, torch
 towers, comparator compare and subtract arithmetic over mixed strengths,
 repeater locking, container signal strengths 0 to 15.
 
-Not checked yet: a full CPU against a Minecraft run of the same program.
-That needs real builds and a Minecraft baseline.
+Not checked yet:
+
+- A full CPU against a Minecraft run of the same program. That needs real
+  builds and a Minecraft baseline.
+- Files saved by Litematica or WorldEdit themselves. Every test input is
+  generated by this repository's own writers, following the published
+  formats and Java's dust-connection rules.
+- Edge-triggered flip-flops. The memory cells tested are level-sensitive
+  (a torch RS latch and a locked-repeater latch).
 
 ## Tests
 
