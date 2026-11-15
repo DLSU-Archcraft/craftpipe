@@ -41,7 +41,7 @@ _ARRAYS = {
     TAG_INT_ARRAY: (IntArray, "i"),
     TAG_LONG_ARRAY: (LongArray, "q"),
 }
-_MAX_DEPTH = 512
+_MAX_DEPTH = 128
 
 
 class _Reader:
