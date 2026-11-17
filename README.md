@@ -22,6 +22,18 @@ work.
 
 Tested against Mineclonia release 35899 on Luanti 5.17.
 
+> **Setting up a computer for players used to Minecraft?** Apply
+> **`config/minecraft-keys.conf`** first. It gives Luanti Minecraft's
+> keys (E for inventory, Left Ctrl to sprint, F5 for the camera), and it
+> has to be done on each computer because server-side mods can't set
+> keys:
+>
+> ```
+> python tools/apply_minecraft_keys.py
+> ```
+>
+> Details are under [Minecraft-style controls](#minecraft-style-controls).
+
 ## Install
 
 ```
