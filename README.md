@@ -344,6 +344,46 @@ refuses to load, with a message, on a Mineclonia version that lacks what
 it needs. It was written against release 35899. After a Mineclonia update,
 run the parity tests before relying on it.
 
+## Minecraft-style controls
+
+The mods change how redstone behaves, not how the game is controlled.
+Luanti keeps key bindings on each player's own computer, so no mod or
+server can set them. `config/minecraft-keys.conf` is a set of Luanti
+settings that moves the keys that differ onto Minecraft Java's defaults:
+
+| Action | Key with the preset | Luanti's default |
+|---|---|---|
+| Open inventory | E | I |
+| Sprint (hold while moving forward) | Left Ctrl | E |
+| Change camera view | F5 | C |
+| Debug information | F3 | F5 |
+| Screenshot | F2 | F12 |
+| Start or stop flying (if allowed to fly) | double-tap Space | K |
+
+Movement, jump, sneak, drop, chat, the command key, the hotbar numbers and
+the mouse buttons already match Minecraft and are left alone. Two Luanti
+actions with no Minecraft equivalent sat on keys the preset needs: showing
+or hiding the chat log moves to F4, and the fog toggle is left unbound.
+
+To apply it on a computer, close Luanti and run:
+
+```
+python tools/apply_minecraft_keys.py /path/to/minetest.conf
+```
+
+`minetest.conf` is Luanti's settings file, in the Luanti user folder
+(`~/.minetest/` on this project's Linux machines; on other systems, the
+folder Luanti's main menu opens under "About" → "Open User Data
+Directory"). Without a path, the tool uses `~/.minetest/minetest.conf`.
+It replaces only the settings listed in the preset, keeps everything else,
+and saves the original beside it as `minetest.conf.before-minecraft-keys`.
+Running it again changes nothing. Luanti rewrites its settings file when
+it exits, so it must be closed while you do this.
+
+The preset is checked against Luanti 5.17's own list of settings and
+defaults (every name exists, no key ends up bound to two actions). It has
+not been tried by a person in the game.
+
 ## Differences between Minecraft and Mineclonia
 
 The same generated circuits are run in a real Minecraft 1.21.1 server and
