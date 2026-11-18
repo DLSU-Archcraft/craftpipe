@@ -1,5 +1,5 @@
-"""config/minecraft-keys.conf and the tool that merges it into a
-player's Luanti settings."""
+"""config/minecraft-settings.conf (Minecraft-style keys, plus fly and give
+for new players) and the tool that merges it into Luanti's settings."""
 
 import importlib.util
 import pathlib
@@ -8,15 +8,15 @@ import re
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-CONF = REPO / "config/minecraft-keys.conf"
+CONF = REPO / "config/minecraft-settings.conf"
 SETTINGTYPES = pathlib.Path("/usr/share/luanti/builtin/settingtypes.txt")
-spec = importlib.util.spec_from_file_location("apply_keys", REPO / "tools/apply_minecraft_keys.py")
-apply_keys = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(apply_keys)
+spec = importlib.util.spec_from_file_location("apply_settings", REPO / "tools/apply_minecraft_settings.py")
+apply_settings = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(apply_settings)
 
 
 def settings():
-    return apply_keys.parse(CONF.read_text())
+    return apply_settings.parse(CONF.read_text())
 
 
 def test_preset_remaps_the_keys_that_differ_from_minecraft():
@@ -61,25 +61,30 @@ def test_apply_merges_without_losing_other_settings(tmp_path):
     target = tmp_path / "minetest.conf"
     target.write_text("mainmenu_last_selected_world = 3\nkeymap_inventory = SYSTEM_SCANCODE_12\n"
                       "name = student\n")
-    changed = apply_keys.apply(CONF, target)
+    changed = apply_settings.apply(CONF, target)
     text = target.read_text()
     assert "mainmenu_last_selected_world = 3" in text and "name = student" in text
     assert text.count("keymap_inventory") == 1
-    assert apply_keys.parse(text)["keymap_inventory"] == settings()["keymap_inventory"]
+    assert apply_settings.parse(text)["keymap_inventory"] == settings()["keymap_inventory"]
     assert changed == len(settings())
-    assert (tmp_path / "minetest.conf.before-minecraft-keys").read_text().startswith("mainmenu_last")
+    assert (tmp_path / "minetest.conf.before-minecraft-settings").read_text().startswith("mainmenu_last")
 
 
 def test_apply_is_idempotent_and_creates_a_missing_file(tmp_path):
     target = tmp_path / "sub" / "minetest.conf"
-    assert apply_keys.apply(CONF, target) == len(settings())
+    assert apply_settings.apply(CONF, target) == len(settings())
     first = target.read_text()
-    assert apply_keys.apply(CONF, target) == 0
+    assert apply_settings.apply(CONF, target) == 0
     assert target.read_text() == first
-    assert apply_keys.parse(first) == settings()
+    assert apply_settings.parse(first) == settings()
 
 
 def test_cli_reports_what_it_did(tmp_path, capsys):
     target = tmp_path / "minetest.conf"
-    assert apply_keys.main([str(target)]) == 0
+    assert apply_settings.main([str(target)]) == 0
     assert str(target) in capsys.readouterr().out
+
+
+def test_new_players_get_fly_and_give():
+    privs = {p.strip() for p in settings()["default_privs"].split(",")}
+    assert privs == {"interact", "shout", "fly", "give"}      # Luanti's defaults plus the two

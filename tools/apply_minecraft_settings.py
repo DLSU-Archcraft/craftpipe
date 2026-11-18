@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Give a Luanti installation Minecraft-style controls.
+"""Give a Luanti installation Minecraft-style controls, and let new
+players fly and use /give.
 
-    python tools/apply_minecraft_keys.py [path/to/minetest.conf]
+    python tools/apply_minecraft_settings.py [path/to/minetest.conf]
 
-Merges config/minecraft-keys.conf into the player's Luanti settings file:
+Merges config/minecraft-settings.conf into the player's Luanti settings file:
 the listed settings are replaced, everything else is left as it was, and
-the original is kept beside it as minetest.conf.before-minecraft-keys.
+the original is kept beside it as minetest.conf.before-minecraft-settings.
 Close Luanti first; it rewrites its settings file when it exits.
 
 Without a path, ~/.minetest/minetest.conf is used if it exists.
@@ -18,7 +19,7 @@ import re
 import shutil
 import sys
 
-PRESET = pathlib.Path(__file__).resolve().parents[1] / "config/minecraft-keys.conf"
+PRESET = pathlib.Path(__file__).resolve().parents[1] / "config/minecraft-settings.conf"
 DEFAULT_TARGET = pathlib.Path.home() / ".minetest/minetest.conf"
 _LINE = re.compile(r"^\s*([A-Za-z0-9_.]+)\s*=\s*(.*?)\s*$")
 
@@ -52,7 +53,7 @@ def apply(preset: pathlib.Path, target: pathlib.Path) -> int:
     kept += [f"{name} = {value}".rstrip() if value else f"{name} =" for name, value in wanted.items()]
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
-        backup = target.with_name(target.name + ".before-minecraft-keys")
+        backup = target.with_name(target.name + ".before-minecraft-settings")
         if not backup.exists():
             shutil.copy2(target, backup)
     target.write_text("\n".join(kept) + "\n")
@@ -65,7 +66,7 @@ def main(argv=None) -> int:
         print(__doc__)
         return 0
     if len(args) > 1:
-        print("usage: apply_minecraft_keys.py [path/to/minetest.conf]", file=sys.stderr)
+        print("usage: apply_minecraft_settings.py [path/to/minetest.conf]", file=sys.stderr)
         return 2
     if args:
         target = pathlib.Path(args[0]).expanduser()
@@ -77,9 +78,9 @@ def main(argv=None) -> int:
         return 2
     count = apply(PRESET, target)
     if count:
-        print(f"{target}: {count} setting(s) updated for Minecraft-style controls")
+        print(f"{target}: {count} setting(s) updated (Minecraft-style keys, fly and give for new players)")
     else:
-        print(f"{target}: already has the Minecraft-style controls")
+        print(f"{target}: already has the Minecraft-style settings")
     return 0
 
 

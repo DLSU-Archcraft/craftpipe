@@ -23,13 +23,13 @@ work.
 Tested against Mineclonia release 35899 on Luanti 5.17.
 
 > **Setting up a computer for players used to Minecraft?** Apply
-> **`config/minecraft-keys.conf`** first. It gives Luanti Minecraft's
-> keys (E for inventory, Left Ctrl to sprint, F5 for the camera), and it
-> has to be done on each computer because server-side mods can't set
-> keys:
+> **`config/minecraft-settings.conf`** first. It gives Luanti Minecraft's
+> keys (E for inventory, Left Ctrl to sprint, F5 for the camera) and lets
+> new players fly and use `/give`. It has to be done on each computer
+> because server-side mods can't set keys:
 >
 > ```
-> python tools/apply_minecraft_keys.py
+> python tools/apply_minecraft_settings.py
 > ```
 >
 > Details are under [Minecraft-style controls](#minecraft-style-controls).
@@ -360,7 +360,7 @@ run the parity tests before relying on it.
 
 The mods change how redstone behaves, not how the game is controlled.
 Luanti keeps key bindings on each player's own computer, so no mod or
-server can set them. `config/minecraft-keys.conf` is a set of Luanti
+server can set them. `config/minecraft-settings.conf` is a set of Luanti
 settings that moves the keys that differ onto Minecraft Java's defaults:
 
 | Action | Key with the preset | Luanti's default |
@@ -380,7 +380,7 @@ or hiding the chat log moves to F4, and the fog toggle is left unbound.
 To apply it on a computer, close Luanti and run:
 
 ```
-python tools/apply_minecraft_keys.py /path/to/minetest.conf
+python tools/apply_minecraft_settings.py /path/to/minetest.conf
 ```
 
 `minetest.conf` is Luanti's settings file, in the Luanti user folder
@@ -388,9 +388,27 @@ python tools/apply_minecraft_keys.py /path/to/minetest.conf
 folder Luanti's main menu opens under "About" → "Open User Data
 Directory"). Without a path, the tool uses `~/.minetest/minetest.conf`.
 It replaces only the settings listed in the preset, keeps everything else,
-and saves the original beside it as `minetest.conf.before-minecraft-keys`.
+and saves the original beside it as `minetest.conf.before-minecraft-settings`.
 Running it again changes nothing. Luanti rewrites its settings file when
 it exits, so it must be closed while you do this.
+
+### Flying and `/give`
+
+The preset also sets `default_privs = interact, shout, fly, give`, so a
+player joining a world for the first time can fly (double-tap Space) and
+use `/give` and `/giveme`. Luanti grants neither by default, not even in
+single-player.
+
+- The setting is read by whichever computer hosts the world. In
+  single-player that is the player's own computer, so applying the preset
+  is enough. For a shared server, put the line in the server's
+  `minetest.conf`.
+- It only affects players who have not joined that world before. For a
+  world someone has already played in: in single-player, run
+  `/grantme fly,give` in the game; on a shared server, an administrator
+  runs `/grant <name> fly,give`.
+- If the settings file already had its own `default_privs`, the preset
+  replaces it; the original is in the backup file.
 
 The preset is checked against Luanti 5.17's own list of settings and
 defaults (every name exists, no key ends up bound to two actions). It has
